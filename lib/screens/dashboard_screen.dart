@@ -73,20 +73,22 @@ class DashboardScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     // 1. Header: Sapaan + Nama Lansia
-                    DashboardHeader(namaLansia: deviceProvider.namaLansia),
+                    DashboardHeader(namaLansia: deviceProvider.status.namaLansia),
                     const SizedBox(height: 8),
 
                     // 2. Banner Status Koneksi
                     ConnectionStatusBanner(
                       isLoading: deviceProvider.isLoading,
-                      isOnline: deviceProvider.isDeviceOnline,
-                      statusText: deviceProvider.wifiStatusText,
+                      isOnline: deviceProvider.status.isDeviceOnline,
+                      statusText: deviceProvider.status.wifiStatusText,
                     ),
 
                     // 3. Card "Jadwal Berikutnya"
                     NextScheduleCard(
                       isLoading: deviceProvider.isLoading,
-                      schedule: deviceProvider.nextSchedule,
+                      nextScheduleTime: deviceProvider.status.nextScheduleTime,
+                      nextScheduleObat: deviceProvider.status.nextScheduleObat,
+                      nextScheduleJumlah: deviceProvider.status.nextScheduleJumlah,
                     ),
 
                     // 4. Grid 2 Kolom (Stok & Gelas)
@@ -96,17 +98,17 @@ class DashboardScreen extends StatelessWidget {
                       mainAxisSpacing: 16,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      childAspectRatio: 1.5, // Sesuaikan rasio aspek kartu
+                      childAspectRatio: 1.5,
                       children: [
                         // Card "Stok Obat"
                         StockStatusCard(
                           isLoading: deviceProvider.isLoading,
-                          stockPercentage: deviceProvider.stokObatPercent,
+                          stockPercentage: deviceProvider.status.stokObatPercent,
                         ),
                         // Card "Status Gelas"
                         GlassStatusCard(
                           isLoading: deviceProvider.isLoading,
-                          status: deviceProvider.statusGelas,
+                          statusGelasTerisi: deviceProvider.status.statusGelasTerisi,
                         ),
                       ],
                     ),
@@ -115,7 +117,7 @@ class DashboardScreen extends StatelessWidget {
                     // 5. Card "Jadwal Hari Ini"
                     TodayScheduleList(
                       isLoading: deviceProvider.isLoading,
-                      schedules: deviceProvider.todaySchedule,
+                      schedules: deviceProvider.status.todaySchedule,
                     ),
 
                     // 6. Tombol Dispense Manual

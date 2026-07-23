@@ -1,17 +1,16 @@
 
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-import '../models/schedule_model.dart';
 
 // Widget untuk card "Status Gelas"
 class GlassStatusCard extends StatelessWidget {
   final bool isLoading;
-  final GlassStatus status;
+  final bool statusGelasTerisi;
 
   const GlassStatusCard({
     super.key,
     required this.isLoading,
-    required this.status,
+    required this.statusGelasTerisi,
   });
 
   @override
@@ -60,7 +59,7 @@ class GlassStatusCard extends StatelessWidget {
 
   Widget _buildContent(BuildContext context) {
     final theme = Theme.of(context);
-    final isFilled = status == GlassStatus.terisi;
+    final isFilled = statusGelasTerisi;
     final icon = isFilled ? Icons.local_cafe : Icons.local_cafe_outlined;
     final label = isFilled ? "Terisi" : "Kosong";
     final color =

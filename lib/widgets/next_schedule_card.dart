@@ -1,17 +1,20 @@
 
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-import '../models/schedule_model.dart';
 
 // Widget untuk card "Jadwal Berikutnya"
 class NextScheduleCard extends StatelessWidget {
   final bool isLoading;
-  final NextSchedule? schedule;
+  final String nextScheduleTime;
+  final String nextScheduleObat;
+  final String nextScheduleJumlah;
 
   const NextScheduleCard({
     super.key,
     required this.isLoading,
-    this.schedule,
+    required this.nextScheduleTime,
+    required this.nextScheduleObat,
+    required this.nextScheduleJumlah,
   });
 
   @override
@@ -32,10 +35,10 @@ class NextScheduleCard extends StatelessWidget {
             const SizedBox(height: 16),
             if (isLoading)
               _buildLoadingState(context)
-            else if (schedule == null)
+            else if (nextScheduleTime == '--:--')
               _buildEmptyState(context)
             else
-              _buildContent(context, schedule!),
+              _buildContent(context),
           ],
         ),
       ),
@@ -87,14 +90,14 @@ class NextScheduleCard extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, NextSchedule schedule) {
+  Widget _buildContent(BuildContext context) {
     final theme = Theme.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // Bagian Kiri: Jam
         Text(
-          schedule.jam,
+          nextScheduleTime,
           style: theme.textTheme.displaySmall?.copyWith(
             fontWeight: FontWeight.w500,
             color: theme.colorScheme.primary,
@@ -107,7 +110,7 @@ class NextScheduleCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                schedule.namaObat,
+                nextScheduleObat,
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -116,7 +119,7 @@ class NextScheduleCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                schedule.jumlah,
+                nextScheduleJumlah,
                 style: theme.textTheme.bodyLarge
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),

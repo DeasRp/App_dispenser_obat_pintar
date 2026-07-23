@@ -6,7 +6,7 @@ import 'package:dispenser_obat_pintar/screens/dashboard_screen.dart';
 void main() {
   runApp(
     ChangeNotifierProvider(
-      create: (context) => DeviceProvider(),
+      create: (context) => DeviceProvider()..init(),
       child: const MyApp(),
     ),
   );

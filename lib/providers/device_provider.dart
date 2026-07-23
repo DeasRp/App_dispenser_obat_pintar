@@ -1,79 +1,118 @@
-
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import '../models/schedule_model.dart';
+import '../core/services/mqtt_service.dart';
+import '../core/constants/mqtt_config.dart';
+import '../models/device_status.dart';
 
-// Provider tiruan (mock) untuk mensimulasikan data dari device/MQTT
-// Ganti dengan implementasi MQTT asli Anda.
 class DeviceProvider with ChangeNotifier {
-  // State
-  bool _isLoading = true;
-  bool _isDeviceOnline = false;
-  String _wifiStatusText = "Tidak terhubung";
-  String _namaLansia = "Nenek";
-  NextSchedule? _nextSchedule;
-  int _stokObatPercent = 0;
-  GlassStatus _statusGelas = GlassStatus.kosong;
-  List<TodaySchedule> _todaySchedule = [];
+  late MqttService _mqttService;
+  
+  DeviceStatus status = DeviceStatus.initial();
+  bool isLoading = false;
+  bool isMqttConnected = false;
 
-  // Getters
-  bool get isLoading => _isLoading;
-  bool get isDeviceOnline => _isDeviceOnline;
-  String get wifiStatusText => _wifiStatusText;
-  String get namaLansia => _namaLansia;
-  NextSchedule? get nextSchedule => _nextSchedule;
-  int get stokObatPercent => _stokObatPercent;
-  GlassStatus get statusGelas => _statusGelas;
-  List<TodaySchedule> get todaySchedule => _todaySchedule;
+  Future<void> init() async {
+    isLoading = true;
+    notifyListeners();
 
-  DeviceProvider() {
-    // Saat provider pertama kali dibuat, langsung coba ambil data
-    refreshDeviceStatus();
+    _mqttService = MqttService(
+      broker: MqttConfig.broker,
+      port: MqttConfig.port,
+      clientId: MqttConfig.clientId,
+      username: MqttConfig.username,
+      password: MqttConfig.password,
+    );
+
+    final connected = await _mqttService.connect(
+      _handleMessage,
+      onConnectionChanged: (isConnected) {
+        isMqttConnected = isConnected;
+        notifyListeners();
+      },
+    );
+
+    if (connected) {
+      isMqttConnected = true;
+      
+      _mqttService.subscribe(MqttConfig.topicMedicineStatus);
+      _mqttService.subscribe(MqttConfig.topicMedicineStock);
+      _mqttService.subscribe(MqttConfig.topicMedicineGlass);
+      _mqttService.subscribe(MqttConfig.topicMedicineSchedule);
+      _mqttService.subscribe(MqttConfig.topicMedicineHistory);
+      _mqttService.subscribe(MqttConfig.topicMedicineNotify);
+
+      await Future.delayed(const Duration(milliseconds: 500));
+      await refreshDeviceStatus();
+    }
+
+    isLoading = false;
+    notifyListeners();
   }
 
-  // Aksi untuk refresh data, dipanggil oleh Pull-to-Refresh
+  void _handleMessage(String topic, String payload) {
+    try {
+      final data = jsonDecode(payload) as Map<String, dynamic>;
+
+      switch (topic) {
+        case MqttConfig.topicMedicineStatus:
+          status = status.copyWith(
+            isDeviceOnline: data['online'] ?? false,
+            wifiStatusText: data['wifi'] ?? 'Tidak terhubung',
+          );
+          break;
+
+        case MqttConfig.topicMedicineStock:
+          status = status.copyWith(
+            stokObatPercent: data['percent'] ?? 0,
+          );
+          break;
+
+        case MqttConfig.topicMedicineGlass:
+          status = status.copyWith(
+            statusGelasTerisi: data['filled'] ?? false,
+          );
+          break;
+
+        case MqttConfig.topicMedicineSchedule:
+          final nextData = data['next'] as Map<String, dynamic>?;
+          if (nextData != null) {
+            status = status.copyWith(
+              nextScheduleTime: nextData['time'] ?? '--:--',
+              nextScheduleObat: nextData['obat'] ?? '-',
+              nextScheduleJumlah: nextData['jumlah'] ?? '-',
+            );
+          }
+
+          final todayData = data['today'] as List<dynamic>?;
+          if (todayData != null) {
+            final schedules = todayData
+                .map((item) => JadwalItem.fromJson(item as Map<String, dynamic>))
+                .toList();
+            status = status.copyWith(todaySchedule: schedules);
+          }
+          break;
+
+        default:
+          break;
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error parsing MQTT payload dari topic $topic: $e');
+    }
+  }
+
   Future<void> refreshDeviceStatus() async {
-    _isLoading = true;
-    notifyListeners();
-
-    // Simulasi delay jaringan
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Simulasi data sukses diterima
-    _isDeviceOnline = true;
-    _wifiStatusText = "Terhubung ke 'WiFi Rumah'";
-    _namaLansia = "Siti";
-    _nextSchedule = NextSchedule(
-        jam: "14:00", namaObat: "Paracetamol", jumlah: "1 tablet");
-    _stokObatPercent = 65;
-    _statusGelas = GlassStatus.terisi;
-    _todaySchedule = [
-      TodaySchedule(
-          jam: "08:00",
-          namaObat: "Amlodipine",
-          status: ScheduleStatus.sudahDiambil),
-      TodaySchedule(
-          jam: "14:00",
-          namaObat: "Paracetamol",
-          status: ScheduleStatus.menunggu),
-      TodaySchedule(
-          jam: "20:00", namaObat: "Metformin", status: ScheduleStatus.terjadwal),
-    ];
-    _isLoading = false;
-
-    // Beri tahu semua listener (widget) bahwa data telah berubah
-    notifyListeners();
+    _mqttService.publish(MqttConfig.topicCmdRefresh, '1');
   }
 
-  // Aksi untuk mengirim perintah dispense manual
-  Future<void> publishDispenseCommand() async {
-    // Di sini logika untuk publish MQTT ke topic 'medicine/cmd/dispense'
-    // Contoh: await mqttClient.publish('medicine/cmd/dispense', '1');
-    debugPrint("MQTT: Menerbitkan perintah ke topic 'medicine/cmd/dispense'");
-    
-    // Simulasi feedback, mungkin setelah mendapat balasan dari device
-    await Future.delayed(const Duration(seconds: 1));
-    debugPrint("MQTT: Perintah dispense berhasil dikirim.");
-    // Anda mungkin ingin menampilkan snackbar atau notifikasi di sini
+  void publishDispenseCommand() {
+    _mqttService.publish(MqttConfig.topicCmdDispense, '1');
+  }
+
+  @override
+  void dispose() {
+    _mqttService.disconnect();
+    super.dispose();
   }
 }

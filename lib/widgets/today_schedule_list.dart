@@ -1,12 +1,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-import '../models/schedule_model.dart';
+import '../models/device_status.dart';
 
 // Widget untuk menampilkan daftar jadwal hari ini
 class TodayScheduleList extends StatelessWidget {
   final bool isLoading;
-  final List<TodaySchedule> schedules;
+  final List<JadwalItem> schedules;
 
   const TodayScheduleList({
     super.key,
@@ -101,7 +101,7 @@ class TodayScheduleList extends StatelessWidget {
 
 // Widget untuk satu item dalam daftar jadwal
 class _ScheduleListItem extends StatelessWidget {
-  final TodaySchedule schedule;
+  final JadwalItem schedule;
 
   const _ScheduleListItem({required this.schedule});
 
@@ -110,7 +110,7 @@ class _ScheduleListItem extends StatelessWidget {
     final theme = Theme.of(context);
     final icon = _getStatusIcon(schedule.status, theme);
     final textColor = _getStatusColor(schedule.status, theme);
-    final isTaken = schedule.status == ScheduleStatus.sudahDiambil;
+    final isTaken = schedule.status == JadwalStatus.sudahDiambil;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12.0),
@@ -143,23 +143,23 @@ class _ScheduleListItem extends StatelessWidget {
     );
   }
 
-  Widget _getStatusIcon(ScheduleStatus status, ThemeData theme) {
+  Widget _getStatusIcon(JadwalStatus status, ThemeData theme) {
     switch (status) {
-      case ScheduleStatus.sudahDiambil:
+      case JadwalStatus.sudahDiambil:
         return Icon(Icons.check_circle, color: Colors.green);
-      case ScheduleStatus.menunggu:
+      case JadwalStatus.menunggu:
         return Icon(Icons.access_time_filled, color: theme.colorScheme.primary);
-      case ScheduleStatus.terjadwal:
+      case JadwalStatus.terjadwal:
         return Icon(Icons.access_time, color: theme.disabledColor);
     }
   }
 
-  Color? _getStatusColor(ScheduleStatus status, ThemeData theme) {
+  Color? _getStatusColor(JadwalStatus status, ThemeData theme) {
     switch (status) {
-      case ScheduleStatus.sudahDiambil:
-      case ScheduleStatus.terjadwal:
+      case JadwalStatus.sudahDiambil:
+      case JadwalStatus.terjadwal:
         return theme.textTheme.bodyMedium?.color?.withAlpha(153);
-      case ScheduleStatus.menunggu:
+      case JadwalStatus.menunggu:
         return theme.textTheme.bodyLarge?.color;
     }
   }
