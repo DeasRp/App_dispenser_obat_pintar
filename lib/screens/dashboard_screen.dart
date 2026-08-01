@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../core/services/auth_service.dart';
 import '../providers/device_provider.dart';
 import '../widgets/connection_status_banner.dart';
 import '../widgets/dashboard_header.dart';
@@ -54,38 +53,6 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // Fungsi untuk menampilkan dialog konfirmasi sebelum logout
-  void _showLogoutConfirmationDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text("Keluar Akun"),
-          content: const Text("Apakah Anda yakin ingin keluar dari aplikasi?"),
-          actions: <Widget>[
-            TextButton(
-              child: const Text("Batal"),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
-              child: const Text("Ya, Keluar"),
-              onPressed: () async {
-                Navigator.of(dialogContext).pop();
-                await AuthService().signOut();
-                // AuthGate akan otomatis redirect ke LoginScreen
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     // Menggunakan Consumer untuk mendapatkan data dari provider dan
@@ -93,16 +60,6 @@ class DashboardScreen extends StatelessWidget {
     return Consumer<DeviceProvider>(
       builder: (context, deviceProvider, child) {
         return Scaffold(
-          appBar: AppBar(
-            title: const Text("Dispenser Obat Pintar"),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout),
-                tooltip: "Logout",
-                onPressed: () => _showLogoutConfirmationDialog(context),
-              ),
-            ],
-          ),
           // SafeArea memastikan konten tidak terpotong oleh notch/statusbar
           body: SafeArea(
             child: RefreshIndicator(

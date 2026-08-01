@@ -6,7 +6,13 @@ import '../models/device_status.dart';
 
 class DeviceProvider with ChangeNotifier {
   late MqttService _mqttService;
-  
+
+  // Getter publik agar shell bisa meneruskan ke KelolaJadwalScreen
+  MqttService get mqttService => _mqttService;
+
+  // lansiaId statis untuk sementara; ganti dengan user ID Supabase jika perlu
+  String get lansiaId => 'lansia-001';
+
   DeviceStatus status = DeviceStatus.initial();
   bool isLoading = false;
   bool isMqttConnected = false;
