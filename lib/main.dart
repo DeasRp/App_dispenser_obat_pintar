@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:dispenser_obat_pintar/providers/device_provider.dart';
 import 'package:dispenser_obat_pintar/screens/dashboard_screen.dart';
+import 'package:dispenser_obat_pintar/screens/auth_gate.dart';
+import 'package:dispenser_obat_pintar/core/services/supabase_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SupabaseService.init();
+  
   runApp(
     ChangeNotifierProvider(
       create: (context) => DeviceProvider()..init(),
@@ -34,7 +39,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: ThemeMode.system, // Automatically switch between light and dark
-      home: const DashboardScreen(),
+      home: const AuthGate(),
     );
   }
 }

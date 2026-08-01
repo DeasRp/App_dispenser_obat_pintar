@@ -29,6 +29,7 @@ class MqttService {
     client.securityContext = SecurityContext.defaultContext;
     client.setProtocolV311();
     client.keepAlivePeriod = 30;
+    client.connectTimeoutPeriod = 8000;
     client.autoReconnect = true;
   }
 
@@ -64,10 +65,9 @@ class MqttService {
       };
 
       final connMessage = MqttConnectMessage()
+          .withClientIdentifier(clientId)
           .authenticateAs(username, password)
-          .withWillQos(MqttQos.atLeastOnce)
-          .startClean()
-          .withWillRetain();
+          .startClean();
       client.connectionMessage = connMessage;
 
       await client.connect();

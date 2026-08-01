@@ -18,7 +18,7 @@ class DeviceProvider with ChangeNotifier {
     _mqttService = MqttService(
       broker: MqttConfig.broker,
       port: MqttConfig.port,
-      clientId: MqttConfig.clientId,
+      clientId: 'flutter_dispenser_obat_${DateTime.now().millisecondsSinceEpoch}',
       username: MqttConfig.username,
       password: MqttConfig.password,
     );
