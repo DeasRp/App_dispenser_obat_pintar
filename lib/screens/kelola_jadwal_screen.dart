@@ -153,7 +153,6 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Kelola jadwal obat')),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _bukaDialogJadwal(),
         child: const Icon(Icons.add),

@@ -4,10 +4,11 @@ import 'package:provider/provider.dart';
 import '../providers/device_provider.dart';
 import 'dashboard_screen.dart';
 import 'kelola_jadwal_screen.dart';
+import 'monitoring_screen.dart';
 import 'setting_screen.dart';
 
 /// Shell utama dengan BottomNavigationBar.
-/// Mengelola perpindahan antara Home (Dashboard), Jadwal, dan Setting.
+/// Mengelola perpindahan antara Home (Dashboard), Jadwal, Monitoring, dan Setting.
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -21,12 +22,14 @@ class _MainShellState extends State<MainShell> {
   static const List<_NavItem> _navItems = [
     _NavItem(label: 'Home', icon: Icons.home_outlined, activeIcon: Icons.home),
     _NavItem(label: 'Jadwal', icon: Icons.calendar_month_outlined, activeIcon: Icons.calendar_month),
+    _NavItem(label: 'Monitoring', icon: Icons.analytics_outlined, activeIcon: Icons.analytics),
     _NavItem(label: 'Setting', icon: Icons.settings_outlined, activeIcon: Icons.settings),
   ];
 
   static const List<String> _titles = [
     'Dispenser Obat Pintar',
     'Kelola Jadwal',
+    'Monitoring',
     'Pengaturan',
   ];
 
@@ -34,13 +37,16 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final deviceProvider = context.watch<DeviceProvider>();
 
-    // Daftar halaman — dibangun di sini agar KelolaJadwalScreen
-    // bisa mendapat argumen yang dibutuhkan dari provider.
+    // Daftar halaman — dibangun di sini agar KelolaJadwalScreen dan
+    // MonitoringScreen bisa mendapat argumen yang dibutuhkan dari provider.
     final List<Widget> pages = [
       const DashboardScreen(),
       KelolaJadwalScreen(
         lansiaId: deviceProvider.lansiaId,
         mqttService: deviceProvider.mqttService,
+      ),
+      MonitoringScreen(
+        lansiaId: deviceProvider.lansiaId,
       ),
       const SettingScreen(),
     ];
