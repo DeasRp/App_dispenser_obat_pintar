@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/services/auth_service.dart';
+import '../core/theme/app_theme.dart';
 
 /// Screen pengaturan: informasi akun dan tombol logout.
 class SettingScreen extends StatelessWidget {
@@ -17,7 +18,10 @@ class SettingScreen extends StatelessWidget {
             child: const Text('Batal'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.onPrimary,
+            ),
             onPressed: () async {
               Navigator.of(dialogContext).pop();
               await AuthService().keluar();
@@ -32,26 +36,27 @@ class SettingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final user = AuthService().currentUser;
     final email = user?.email ?? '-';
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20), // Lebih lega ala Airbnb
       children: [
-        // ── Info Akun ─────────────────────────────────────────────
+        // ── Info Akun (host-card style: 24px padding) ─────────────
         Card(
+          elevation: 0,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
             child: Row(
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundColor:
-                      Theme.of(context).colorScheme.primaryContainer,
-                  child: Icon(
+                  backgroundColor: AppColors.surfaceStrong,
+                  child: const Icon(
                     Icons.person,
                     size: 32,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    color: AppColors.ink,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -61,13 +66,18 @@ class SettingScreen extends StatelessWidget {
                     children: [
                       Text(
                         'Akun Anda',
-                        style: Theme.of(context).textTheme.labelMedium,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.muted,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         email,
-                        style: Theme.of(context).textTheme.bodyLarge
-                            ?.copyWith(fontWeight: FontWeight.w600),
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ink,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -82,18 +92,41 @@ class SettingScreen extends StatelessWidget {
 
         // ── Informasi Aplikasi ────────────────────────────────────
         Card(
+          elevation: 0,
           child: Column(
             children: [
               ListTile(
-                leading: const Icon(Icons.info_outline),
-                title: const Text('Versi Aplikasi'),
-                trailing: const Text('1.0.0'),
+                leading: const Icon(Icons.info_outline, color: AppColors.muted),
+                title: Text(
+                  'Versi Aplikasi',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.ink,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                trailing: Text(
+                  '1.0.0',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.muted,
+                  ),
+                ),
               ),
               const Divider(height: 1, indent: 16, endIndent: 16),
               ListTile(
-                leading: const Icon(Icons.devices),
-                title: const Text('Nama Perangkat'),
-                trailing: const Text('Dispenser Obat Pintar'),
+                leading: const Icon(Icons.devices, color: AppColors.muted),
+                title: Text(
+                  'Nama Perangkat',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.ink,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                trailing: Text(
+                  'Dispenser Obat Pintar',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.muted,
+                  ),
+                ),
               ),
             ],
           ),
@@ -103,13 +136,15 @@ class SettingScreen extends StatelessWidget {
         // ── Tombol Logout ─────────────────────────────────────────
         FilledButton.icon(
           style: FilledButton.styleFrom(
-            backgroundColor: Colors.red,
-            foregroundColor: Colors.white,
+            backgroundColor: AppColors.error,
+            foregroundColor: AppColors.onPrimary,
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
           icon: const Icon(Icons.logout),
-          label: const Text('Keluar dari Akun',
-              style: TextStyle(fontSize: 16)),
+          label: const Text(
+            'Keluar dari Akun',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
           onPressed: () => _showLogoutDialog(context),
         ),
       ],

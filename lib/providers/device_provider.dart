@@ -6,10 +6,15 @@ import '../core/constants/mqtt_config.dart';
 import '../models/device_status.dart';
 
 class DeviceProvider with ChangeNotifier {
-  late MqttService _mqttService;
+  MqttService? _mqttService;
 
-  // Getter publik agar shell bisa meneruskan ke KelolaJadwalScreen
-  MqttService get mqttService => _mqttService;
+  // Getter publik agar shell bisa meneruskan ke KelolaJadwalScreen.
+  // Nullable karena init() berjalan async -- widget yang membaca ini
+  // sebelum init() selesai harus menangani null (lihat isSiap di bawah).
+  MqttService? get mqttService => _mqttService;
+
+  // True setelah MqttService selesai dibuat, aman dipakai widget lain.
+  bool get isSiap => _mqttService != null;
 
   // Diisi otomatis dari Supabase berdasarkan user yang sedang login.
   String? _lansiaId;
@@ -19,7 +24,8 @@ class DeviceProvider with ChangeNotifier {
   bool isLoading = false;
   bool isMqttConnected = false;
 
-  /// Ambil UUID baris "lansia" milik user yang sedang login.
+  /// Ambil UUID baris "lansia" milik user yang sedang login, sekaligus
+  /// namanya untuk ditampilkan di header sapaan dashboard.
   /// Perlu dipanggil sebelum connect MQTT supaya bisa langsung
   /// diprovisioning ke ESP32.
   Future<void> _muatLansiaId() async {
@@ -32,11 +38,16 @@ class DeviceProvider with ChangeNotifier {
     try {
       final response = await SupabaseService.client
           .from('lansia')
-          .select('id')
+          .select('id, nama')
           .eq('user_id', userId)
           .maybeSingle();
 
       _lansiaId = response?['id'] as String?;
+
+      final nama = response?['nama'] as String?;
+      if (nama != null && nama.isNotEmpty) {
+        status = status.copyWith(namaLansia: nama);
+      }
 
       if (_lansiaId == null) {
         debugPrint('Data lansia untuk user ini belum ditemukan di Supabase.');
@@ -52,15 +63,16 @@ class DeviceProvider with ChangeNotifier {
 
     await _muatLansiaId();
 
-    _mqttService = MqttService(
+    final mqtt = MqttService(
       broker: MqttConfig.broker,
       port: MqttConfig.port,
       clientId: 'flutter_dispenser_obat_${DateTime.now().millisecondsSinceEpoch}',
       username: MqttConfig.username,
       password: MqttConfig.password,
     );
+    _mqttService = mqtt;
 
-    final connected = await _mqttService.connect(
+    final connected = await mqtt.connect(
       _handleMessage,
       onConnectionChanged: (isConnected) {
         isMqttConnected = isConnected;
@@ -71,18 +83,18 @@ class DeviceProvider with ChangeNotifier {
     if (connected) {
       isMqttConnected = true;
 
-      _mqttService.subscribe(MqttConfig.topicMedicineStatus);
-      _mqttService.subscribe(MqttConfig.topicMedicineStock);
-      _mqttService.subscribe(MqttConfig.topicMedicineGlass);
-      _mqttService.subscribe(MqttConfig.topicMedicineSchedule);
-      _mqttService.subscribe(MqttConfig.topicMedicineHistory);
-      _mqttService.subscribe(MqttConfig.topicMedicineNotify);
+      mqtt.subscribe(MqttConfig.topicMedicineStatus);
+      mqtt.subscribe(MqttConfig.topicMedicineStock);
+      mqtt.subscribe(MqttConfig.topicMedicineGlass);
+      mqtt.subscribe(MqttConfig.topicMedicineSchedule);
+      mqtt.subscribe(MqttConfig.topicMedicineHistory);
+      mqtt.subscribe(MqttConfig.topicMedicineNotify);
 
       // Kirim Lansia ID ke ESP32 supaya alat tahu jadwal siapa yang harus
       // diambil dari Supabase. Aman dikirim berulang setiap connect;
       // ESP32 hanya menyimpan ulang ke memori jika ID berbeda.
       if (_lansiaId != null) {
-        _mqttService.publish(MqttConfig.topicCmdSetLansia, _lansiaId!);
+        mqtt.publish(MqttConfig.topicCmdSetLansia, _lansiaId!);
       }
 
       await Future.delayed(const Duration(milliseconds: 500));
@@ -147,16 +159,16 @@ class DeviceProvider with ChangeNotifier {
   }
 
   Future<void> refreshDeviceStatus() async {
-    _mqttService.publish(MqttConfig.topicCmdRefresh, '1');
+    _mqttService?.publish(MqttConfig.topicCmdRefresh, '1');
   }
 
   void publishDispenseCommand() {
-    _mqttService.publish(MqttConfig.topicCmdDispense, '1');
+    _mqttService?.publish(MqttConfig.topicCmdDispense, '1');
   }
 
   @override
   void dispose() {
-    _mqttService.disconnect();
+    _mqttService?.disconnect();
     super.dispose();
   }
 }

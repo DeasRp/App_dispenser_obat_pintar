@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import '../core/theme/app_theme.dart';
 
 // Widget untuk card "Stok Obat"
 class StockStatusCard extends StatelessWidget {
@@ -14,9 +15,9 @@ class StockStatusCard extends StatelessWidget {
   });
 
   Color _getIndicatorColor(int percentage) {
-    if (percentage < 20) return Colors.red;
-    if (percentage <= 50) return Colors.amber;
-    return Colors.green;
+    if (percentage < 20) return AppColors.error;
+    if (percentage <= 50) return AppColors.warning;
+    return AppColors.success;
   }
 
   @override
@@ -25,12 +26,19 @@ class StockStatusCard extends StatelessWidget {
     final indicatorColor = _getIndicatorColor(stockPercentage);
 
     return Card(
+      elevation: 0,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Stok Obat", style: theme.textTheme.titleMedium),
+            Text(
+              "Stok Obat",
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const Spacer(),
             if (isLoading)
               _buildLoadingState(context)
@@ -66,17 +74,17 @@ class StockStatusCard extends StatelessWidget {
         Text(
           "$stockPercentage%",
           style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
             color: indicatorColor,
           ),
         ),
         const SizedBox(height: 8),
         LinearProgressIndicator(
           value: stockPercentage / 100,
-          backgroundColor: indicatorColor.withAlpha(51),
+          backgroundColor: indicatorColor.withValues(alpha: 0.12),
           valueColor: AlwaysStoppedAnimation<Color>(indicatorColor),
-          minHeight: 8,
-          borderRadius: BorderRadius.circular(4),
+          minHeight: 6,
+          borderRadius: BorderRadius.circular(AppRadius.full),
         ),
       ],
     );

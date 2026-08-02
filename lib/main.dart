@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:dispenser_obat_pintar/providers/device_provider.dart';
 import 'package:dispenser_obat_pintar/screens/auth_gate.dart';
 import 'package:dispenser_obat_pintar/core/services/supabase_service.dart';
+import 'package:dispenser_obat_pintar/core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,21 +24,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Dispenser Obat Pintar',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.teal,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.teal,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
-      themeMode: ThemeMode.system, // Automatically switch between light and dark
+      // Gunakan tema Airbnb-inspired dari AppTheme — tanpa dark mode
+      // (sesuai DESIGN.md: "Airbnb does not have a dark mode on the public web")
+      theme: AppTheme.lightTheme,
+      themeMode: ThemeMode.light,
       home: const AuthGate(),
     );
   }

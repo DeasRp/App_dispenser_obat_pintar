@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/services/auth_service.dart';
+import '../core/theme/app_theme.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
 
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _errorMessage;
 
   Future<void> _login() async {
@@ -73,24 +75,54 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.xxl,
+            ),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.medical_services_outlined, size: 64),
-                  const SizedBox(height: 16),
+                  // ── Logo / Icon ─────────────────────────────────────────
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: const Icon(
+                      Icons.medication_liquid,
+                      size: 40,
+                      color: AppColors.onPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // ── Headline ────────────────────────────────────────────
                   Text(
                     'Dispenser Obat Pintar',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Masuk untuk mengelola jadwal obat',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.muted,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+
+                  // ── Email Field ─────────────────────────────────────────
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -108,13 +140,25 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // ── Password Field ──────────────────────────────────────
                   TextFormField(
                     controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
+                    obscureText: _obscurePassword,
+                    decoration: InputDecoration(
                       labelText: 'Password',
-                      prefixIcon: Icon(Icons.lock_outline),
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                          color: AppColors.muted,
+                        ),
+                        onPressed: () =>
+                            setState(() => _obscurePassword = !_obscurePassword),
+                      ),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -123,41 +167,92 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
+
+                  // ── Lupa Password ───────────────────────────────────────
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: _lupaPassword,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.ink,
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
                       child: const Text('Lupa password?'),
                     ),
                   ),
+
+                  // ── Error message ───────────────────────────────────────
                   if (_errorMessage != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _errorMessage!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
-                      textAlign: TextAlign.center,
+                    const SizedBox(height: AppSpacing.sm),
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEE2DC),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          color: AppColors.error,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.base),
+
+                  // ── CTA Button ──────────────────────────────────────────
                   FilledButton(
                     onPressed: _isLoading ? null : _login,
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.onPrimary,
+                            ),
                           )
                         : const Text('Masuk'),
                   ),
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                      );
-                    },
-                    child: const Text('Belum punya akun? Daftar'),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // ── Register Link ───────────────────────────────────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Belum punya akun?',
+                        style: TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 14,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const RegisterScreen(),
+                            ),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.ink,
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                        child: const Text('Daftar sekarang'),
+                      ),
+                    ],
                   ),
                 ],
               ),

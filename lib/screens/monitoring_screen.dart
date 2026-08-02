@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/monitoring_model.dart';
 import '../repositories/monitoring_repository.dart';
+import '../core/theme/app_theme.dart';
 
 class MonitoringScreen extends StatefulWidget {
   final String lansiaId;
@@ -95,7 +96,13 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   }
 
   Widget _buildJudulSeksi(String judul) {
-    return Text(judul, style: Theme.of(context).textTheme.titleMedium);
+    return Text(
+      judul,
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: AppColors.ink,
+            fontWeight: FontWeight.w600,
+          ),
+    );
   }
 
   Widget _buildKartuChart({required Widget child}) {
@@ -103,8 +110,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       height: 260,
       padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.surfaceSoft,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.hairlineSoft, width: 1),
       ),
       child: child,
     );
@@ -259,9 +267,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           return const Center(child: Text('Belum ada data kepatuhan.'));
         }
 
-        final warnaSukses = Colors.green;
-        final warnaGagal = Colors.orange;
-        final warnaTerlewat = Colors.redAccent;
+        final warnaSukses = AppColors.success;
+        final warnaGagal = AppColors.warning;
+        final warnaTerlewat = AppColors.error;
 
         return Row(
           children: [
@@ -300,7 +308,11 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                   ),
                   Text(
                     '${data.persenKepatuhan.toStringAsFixed(0)}%',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
                   ),
                 ],
               ),
@@ -328,9 +340,25 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   Widget _buildLegenda(Color warna, String label, int jumlah) {
     return Row(
       children: [
-        Container(width: 12, height: 12, color: warna),
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: warna,
+            borderRadius: BorderRadius.circular(AppRadius.xs),
+          ),
+        ),
         const SizedBox(width: 8),
-        Expanded(child: Text('$label ($jumlah)', style: const TextStyle(fontSize: 12))),
+        Expanded(
+          child: Text(
+            '$label ($jumlah)',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppColors.body,
+            ),
+          ),
+        ),
       ],
     );
   }

@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import '../core/theme/app_theme.dart';
 
 // Widget untuk card "Jadwal Berikutnya"
 class NextScheduleCard extends StatelessWidget {
@@ -23,14 +24,18 @@ class NextScheduleCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
+      elevation: 0,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0), // Lebih lega ala Airbnb
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               "Jadwal Berikutnya",
-              style: theme.textTheme.titleMedium,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 16),
             if (isLoading)
@@ -55,7 +60,10 @@ class NextScheduleCard extends StatelessWidget {
           Container(
             width: 80,
             height: 40,
-            color: Colors.white,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppRadius.xs),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -82,10 +90,14 @@ class NextScheduleCard extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return const Center(
+    final theme = Theme.of(context);
+    return Center(
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 16.0),
-        child: Text("Tidak ada jadwal berikutnya."),
+        padding: const EdgeInsets.symmetric(vertical: 16.0),
+        child: Text(
+          "Tidak ada jadwal berikutnya.",
+          style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.muted),
+        ),
       ),
     );
   }
@@ -95,12 +107,14 @@ class NextScheduleCard extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Bagian Kiri: Jam
+        // Bagian Kiri: Jam (rating-display style - large & bold)
         Text(
           nextScheduleTime,
-          style: theme.textTheme.displaySmall?.copyWith(
-            fontWeight: FontWeight.w500,
-            color: theme.colorScheme.primary,
+          style: theme.textTheme.displayLarge?.copyWith(
+            fontSize: 36,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primary,
+            letterSpacing: -1.0,
           ),
         ),
         const SizedBox(width: 24),
@@ -111,8 +125,9 @@ class NextScheduleCard extends StatelessWidget {
             children: [
               Text(
                 nextScheduleObat,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -120,8 +135,9 @@ class NextScheduleCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 nextScheduleJumlah,
-                style: theme.textTheme.bodyLarge
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppColors.muted,
+                ),
               ),
             ],
           ),

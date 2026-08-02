@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/services/auth_service.dart';
 import '../core/services/supabase_service.dart';
+import '../core/theme/app_theme.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -19,6 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _noHpController = TextEditingController();
 
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _errorMessage;
 
   Future<void> _daftar() async {
@@ -68,19 +70,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Daftar akun')),
+      backgroundColor: AppColors.canvas,
+      appBar: AppBar(
+        title: const Text('Buat Akun Baru'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.ink),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.lg,
+          ),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // ── Section: Akun ──────────────────────────────────────
+                Text(
+                  'Informasi Akun',
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    color: AppColors.ink,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Data untuk login ke aplikasi',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email'),
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
                   validator: (value) {
                     if (value == null || !value.contains('@')) {
                       return 'Email tidak valid';
@@ -88,11 +117,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
+
                 TextFormField(
                   controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Password'),
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: AppColors.muted,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
                   validator: (value) {
                     if (value == null || value.length < 6) {
                       return 'Password minimal 6 karakter';
@@ -100,12 +143,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 24),
-                Text('Data lansia', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.xxl),
+
+                // ── Section: Data Lansia ────────────────────────────────
+                Text(
+                  'Data Lansia',
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    color: AppColors.ink,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Informasi orang yang menggunakan dispenser',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+
                 TextFormField(
                   controller: _namaLansiaController,
-                  decoration: const InputDecoration(labelText: 'Nama lansia'),
+                  decoration: const InputDecoration(
+                    labelText: 'Nama lengkap',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Nama lansia wajib diisi';
@@ -113,12 +172,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
+
                 TextFormField(
                   controller: _noHpController,
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
-                    labelText: 'No. HP keluarga (untuk notifikasi WhatsApp)',
+                    labelText: 'No. HP keluarga',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                    helperText: 'Untuk notifikasi WhatsApp',
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -127,24 +189,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
+
+                // ── Error message ───────────────────────────────────────
                 if (_errorMessage != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    _errorMessage!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  const SizedBox(height: AppSpacing.md),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEE2DC),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontSize: 14,
+                      ),
+                    ),
                   ),
                 ],
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.xxl),
+
+                // ── CTA Button ──────────────────────────────────────────
                 FilledButton(
                   onPressed: _isLoading ? null : _daftar,
                   child: _isLoading
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.onPrimary,
+                          ),
                         )
-                      : const Text('Daftar'),
+                      : const Text('Buat Akun'),
                 ),
+                const SizedBox(height: AppSpacing.lg),
               ],
             ),
           ),

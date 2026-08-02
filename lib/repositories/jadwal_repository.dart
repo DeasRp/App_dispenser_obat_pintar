@@ -49,6 +49,21 @@ class JadwalRepository {
     await _client.from('jadwal_obat').update({'aktif': false}).eq('id', id);
   }
 
+  /// Ambil satu baris riwayat konsumsi paling baru, untuk kartu
+  /// "Last Medicine Taken" di dashboard.
+  Future<RiwayatKonsumsiModel?> getRiwayatTerakhir(String lansiaId) async {
+    final response = await _client
+        .from('riwayat_konsumsi')
+        .select('*, jadwal_obat!inner(lansia_id)')
+        .eq('jadwal_obat.lansia_id', lansiaId)
+        .order('waktu_diambil', ascending: false)
+        .limit(1)
+        .maybeSingle();
+
+    if (response == null) return null;
+    return RiwayatKonsumsiModel.fromJson(response);
+  }
+
   Future<void> hapusJadwalPermanen(String id) async {
     await _client.from('jadwal_obat').delete().eq('id', id);
   }

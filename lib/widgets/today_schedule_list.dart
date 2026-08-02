@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import '../models/device_status.dart';
+import '../core/theme/app_theme.dart';
 
 // Widget untuk menampilkan daftar jadwal hari ini
 class TodayScheduleList extends StatelessWidget {
@@ -20,12 +21,19 @@ class TodayScheduleList extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
+      elevation: 0,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Jadwal Hari Ini", style: theme.textTheme.titleMedium),
+            Text(
+              "Jadwal Hari Ini",
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 16),
             if (isLoading)
               _buildLoadingState(context)
@@ -72,16 +80,19 @@ class TodayScheduleList extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return const Center(
+    final theme = Theme.of(context);
+    return Center(
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 16.0),
-        child: Text("Tidak ada jadwal untuk hari ini."),
+        padding: const EdgeInsets.symmetric(vertical: 16.0),
+        child: Text(
+          "Tidak ada jadwal untuk hari ini.",
+          style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.muted),
+        ),
       ),
     );
   }
 
   Widget _buildList(BuildContext context) {
-    // Menggunakan ListView.separated untuk menambahkan Divider secara otomatis
     return ListView.separated(
       physics: const NeverScrollableScrollPhysics(), // Agar tidak ada scroll di dalam list
       shrinkWrap: true,
@@ -90,10 +101,10 @@ class TodayScheduleList extends StatelessWidget {
         final schedule = schedules[index];
         return _ScheduleListItem(schedule: schedule);
       },
-      separatorBuilder: (context, index) => Divider(
+      separatorBuilder: (context, index) => const Divider(
         height: 1,
-        thickness: 0.5,
-        color: Theme.of(context).dividerColor.withAlpha(128),
+        thickness: 1,
+        color: AppColors.hairlineSoft,
       ),
     );
   }
@@ -109,7 +120,6 @@ class _ScheduleListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final icon = _getStatusIcon(schedule.status, theme);
-    final textColor = _getStatusColor(schedule.status, theme);
     final isTaken = schedule.status == JadwalStatus.sudahDiambil;
 
     return Padding(
@@ -125,15 +135,17 @@ class _ScheduleListItem extends StatelessWidget {
                 Text(
                   schedule.namaObat,
                   style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
+                    fontWeight: FontWeight.w600,
+                    color: isTaken ? AppColors.muted : AppColors.ink,
                     decoration: isTaken ? TextDecoration.lineThrough : null,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   "Pukul ${schedule.jam}",
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: textColor?.withAlpha(204)),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.muted,
+                  ),
                 ),
               ],
             ),
@@ -146,21 +158,11 @@ class _ScheduleListItem extends StatelessWidget {
   Widget _getStatusIcon(JadwalStatus status, ThemeData theme) {
     switch (status) {
       case JadwalStatus.sudahDiambil:
-        return Icon(Icons.check_circle, color: Colors.green);
+        return const Icon(Icons.check_circle_outline, color: AppColors.success, size: 22);
       case JadwalStatus.menunggu:
-        return Icon(Icons.access_time_filled, color: theme.colorScheme.primary);
+        return const Icon(Icons.access_time_filled, color: AppColors.primary, size: 22);
       case JadwalStatus.terjadwal:
-        return Icon(Icons.access_time, color: theme.disabledColor);
-    }
-  }
-
-  Color? _getStatusColor(JadwalStatus status, ThemeData theme) {
-    switch (status) {
-      case JadwalStatus.sudahDiambil:
-      case JadwalStatus.terjadwal:
-        return theme.textTheme.bodyMedium?.color?.withAlpha(153);
-      case JadwalStatus.menunggu:
-        return theme.textTheme.bodyLarge?.color;
+        return const Icon(Icons.access_time, color: AppColors.mutedSoft, size: 22);
     }
   }
 }

@@ -1,20 +1,41 @@
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/device_provider.dart';
+import '../repositories/jadwal_repository.dart';
+import '../models/jadwal_obat_model.dart';
 import '../widgets/connection_status_banner.dart';
 import '../widgets/dashboard_header.dart';
 import '../widgets/next_schedule_card.dart';
 import '../widgets/stock_status_card.dart';
 import '../widgets/glass_status_card.dart';
 import '../widgets/today_schedule_list.dart';
+import '../widgets/last_medicine_taken_card.dart';
 
 // Halaman utama / Dashboard Aplikasi
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
-  // Fungsi untuk menampilkan dialog konfirmasi sebelum dispense manual
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final _jadwalRepo = JadwalRepository();
+  Future<RiwayatKonsumsiModel?>? _riwayatTerakhirFuture;
+
+  void _muatRiwayatTerakhir(String lansiaId) {
+    if (lansiaId.isEmpty) return;
+    setState(() {
+      _riwayatTerakhirFuture = _jadwalRepo.getRiwayatTerakhir(lansiaId);
+    });
+  }
+
+  Future<void> _refreshSemua(DeviceProvider deviceProvider) async {
+    await deviceProvider.refreshDeviceStatus();
+    _muatRiwayatTerakhir(deviceProvider.lansiaId);
+  }
+
   void _showDispenseConfirmationDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -27,18 +48,15 @@ class DashboardScreen extends StatelessWidget {
             TextButton(
               child: const Text("Batal"),
               onPressed: () {
-                Navigator.of(dialogContext).pop(); // Tutup dialog
+                Navigator.of(dialogContext).pop();
               },
             ),
             FilledButton(
               child: const Text("Ya, Keluarkan"),
               onPressed: () {
-                // Panggil provider untuk mengirim perintah
-                // `listen: false` karena kita hanya memanggil fungsi, tidak perlu rebuild
                 context.read<DeviceProvider>().publishDispenseCommand();
-                Navigator.of(dialogContext).pop(); // Tutup dialog
+                Navigator.of(dialogContext).pop();
 
-                // Tampilkan notifikasi (opsional)
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text("Perintah mengeluarkan obat dikirim..."),
@@ -55,19 +73,19 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Menggunakan Consumer untuk mendapatkan data dari provider dan
-    // rebuild widget ketika data berubah.
     return Consumer<DeviceProvider>(
       builder: (context, deviceProvider, child) {
+        // Muat riwayat terakhir sekali saja saat lansiaId sudah tersedia.
+        _riwayatTerakhirFuture ??= deviceProvider.lansiaId.isNotEmpty
+            ? _jadwalRepo.getRiwayatTerakhir(deviceProvider.lansiaId)
+            : null;
+
         return Scaffold(
-          // SafeArea memastikan konten tidak terpotong oleh notch/statusbar
           body: SafeArea(
             child: RefreshIndicator(
-              // Pull-to-refresh akan memanggil fungsi ini
-              onRefresh: deviceProvider.refreshDeviceStatus,
+              onRefresh: () => _refreshSemua(deviceProvider),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                // Padding horizontal untuk seluruh layar
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -76,12 +94,13 @@ class DashboardScreen extends StatelessWidget {
                     DashboardHeader(namaLansia: deviceProvider.status.namaLansia),
                     const SizedBox(height: 8),
 
-                    // 2. Banner Status Koneksi
+                    // 2. Banner Status Koneksi (Dispenser Online + WiFi)
                     ConnectionStatusBanner(
                       isLoading: deviceProvider.isLoading,
                       isOnline: deviceProvider.status.isDeviceOnline,
                       statusText: deviceProvider.status.wifiStatusText,
                     ),
+                    const SizedBox(height: 12),
 
                     // 3. Card "Jadwal Berikutnya"
                     NextScheduleCard(
@@ -90,6 +109,7 @@ class DashboardScreen extends StatelessWidget {
                       nextScheduleObat: deviceProvider.status.nextScheduleObat,
                       nextScheduleJumlah: deviceProvider.status.nextScheduleJumlah,
                     ),
+                    const SizedBox(height: 12),
 
                     // 4. Grid 2 Kolom (Stok & Gelas)
                     GridView.count(
@@ -100,36 +120,46 @@ class DashboardScreen extends StatelessWidget {
                       physics: const NeverScrollableScrollPhysics(),
                       childAspectRatio: 1.5,
                       children: [
-                        // Card "Stok Obat"
                         StockStatusCard(
                           isLoading: deviceProvider.isLoading,
                           stockPercentage: deviceProvider.status.stokObatPercent,
                         ),
-                        // Card "Status Gelas"
                         GlassStatusCard(
                           isLoading: deviceProvider.isLoading,
                           statusGelasTerisi: deviceProvider.status.statusGelasTerisi,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
 
-                    // 5. Card "Jadwal Hari Ini"
+                    // 5. Last Medicine Taken
+                    FutureBuilder<RiwayatKonsumsiModel?>(
+                      future: _riwayatTerakhirFuture,
+                      builder: (context, snapshot) {
+                        final riwayat = snapshot.data;
+                        return LastMedicineTakenCard(
+                          isLoading: snapshot.connectionState == ConnectionState.waiting,
+                          namaObatTerakhir: riwayat?.namaObat,
+                          waktuTerakhir: riwayat?.waktuDiambil,
+                          statusTerakhir: riwayat?.status,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 6. Card "Jadwal Hari Ini"
                     TodayScheduleList(
                       isLoading: deviceProvider.isLoading,
                       schedules: deviceProvider.status.todaySchedule,
                     ),
+                    const SizedBox(height: 16),
 
                     // 6. Tombol Dispense Manual
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16.0),
-                      child: ElevatedButton.icon(
+                      child: FilledButton.icon(
                         icon: const Icon(Icons.medication_liquid),
                         label: const Text("Keluarkan Obat Manual"),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          textStyle: Theme.of(context).textTheme.titleMedium,
-                        ),
                         onPressed: () => _showDispenseConfirmationDialog(context),
                       ),
                     ),

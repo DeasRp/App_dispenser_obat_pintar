@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import '../core/theme/app_theme.dart';
 
 // Widget untuk menampilkan sapaan dan avatar di bagian atas dashboard
 class DashboardHeader extends StatelessWidget {
@@ -41,7 +42,7 @@ class DashboardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -50,25 +51,29 @@ class DashboardHeader extends StatelessWidget {
             children: [
               Text(
                 _getGreeting(),
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppColors.muted,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
+              const SizedBox(height: 2),
               Text(
                 namaLansia,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+                style: theme.textTheme.displaySmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
                 ),
               ),
             ],
           ),
           CircleAvatar(
             radius: 24,
-            backgroundColor: theme.colorScheme.primaryContainer,
+            backgroundColor: AppColors.surfaceStrong,
             child: Text(
               _getInitials(namaLansia),
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onPrimaryContainer,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: AppColors.ink,
               ),
             ),
           ),

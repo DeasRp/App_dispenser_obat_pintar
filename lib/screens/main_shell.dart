@@ -34,8 +34,28 @@ class _MainShellState extends State<MainShell> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Trigger koneksi MQTT + muat lansiaId sekali saat shell pertama kali
+    // dibuka (setelah login). listen: false karena ini cuma memanggil
+    // fungsi, bukan butuh rebuild saat provider berubah.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DeviceProvider>().init();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final deviceProvider = context.watch<DeviceProvider>();
+
+    // Selama MqttService belum siap (init() masih berjalan), tampilkan
+    // loading penuh -- mencegah KelolaJadwalScreen dibangun dengan
+    // mqttService yang masih null.
+    if (!deviceProvider.isSiap) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     // Daftar halaman — dibangun di sini agar KelolaJadwalScreen dan
     // MonitoringScreen bisa mendapat argumen yang dibutuhkan dari provider.
@@ -43,7 +63,7 @@ class _MainShellState extends State<MainShell> {
       const DashboardScreen(),
       KelolaJadwalScreen(
         lansiaId: deviceProvider.lansiaId,
-        mqttService: deviceProvider.mqttService,
+        mqttService: deviceProvider.mqttService!,
       ),
       MonitoringScreen(
         lansiaId: deviceProvider.lansiaId,
