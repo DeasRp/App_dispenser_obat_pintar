@@ -23,9 +23,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Dispenser Obat Pintar',
-      // Gunakan tema Airbnb-inspired dari AppTheme — tanpa dark mode
-      // (sesuai DESIGN.md: "Airbnb does not have a dark mode on the public web")
       theme: AppTheme.lightTheme,
       themeMode: ThemeMode.light,
       home: const AuthGate(),

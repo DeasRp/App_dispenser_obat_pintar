@@ -68,7 +68,9 @@ class _MainShellState extends State<MainShell> {
       MonitoringScreen(
         lansiaId: deviceProvider.lansiaId,
       ),
-      const SettingScreen(),
+      SettingScreen(
+        lansiaId: deviceProvider.lansiaId,
+      ),
     ];
 
     return Scaffold(

@@ -57,15 +57,11 @@ dev_dependencies:
 # following page: https://dart.dev/tools/pub/pubspec
 flutter_native_splash:
   color: "#FFFFFF"                    # warna background splash
-  image: assets/images/logo_splash.png # logo/icon di tengah
-  color_dark: "#121212"               # background untuk dark mode
-  image_dark: assets/images/logo_splash.png
+  image: assets/images/logo.png # logo/icon di tengah
 
   android_12:
-    image: assets/images/logo_splash.png
+    image: assets/images/logo.png
     icon_background_color: "#FFFFFF"
-    image_dark: assets/images/logo_splash.png
-    icon_background_color_dark: "#121212"
 
   # opsional: full screen (splash menutupi status bar)
   fullscreen: true

@@ -89,18 +89,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ── Logo / Icon ─────────────────────────────────────────
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: const Icon(
-                      Icons.medication_liquid,
-                      size: 40,
-                      color: AppColors.onPrimary,
+                  // ── Logo ─────────────────────────────────────────
+                  Center(
+                    child: Image.asset(
+                      'assets/images/logo1.png',
+                      width: 96,
+                      height: 96,
+                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),

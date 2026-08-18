@@ -89,6 +89,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // ── Logo ─────────────────────────────────────────
+                Center(
+                  child: Image.asset(
+                    'assets/images/logo1.png',
+                    width: 56,
+                    height: 56,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+
                 // ── Section: Akun ──────────────────────────────────────
                 Text(
                   'Informasi Akun',
