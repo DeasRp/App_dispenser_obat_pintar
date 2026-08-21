@@ -19,7 +19,20 @@ class AuthGate extends StatelessWidget {
       stream: authService.authStateChanges,
       builder: (context, snapshot) {
         final sudahLogin = authService.isLoggedIn;
-        return sudahLogin ? const MainShell() : const LoginScreen();
+        final userId = authService.currentUser?.id;
+
+        if (!sudahLogin) {
+          return const LoginScreen();
+        }
+
+        // PENTING: key berbasis userId memaksa Flutter membuat instance
+        // MainShell baru (State + initState terpanggil ulang) setiap kali
+        // user yang login berganti -- misalnya saat daftar akun baru tanpa
+        // logout eksplisit dulu, di mana Supabase langsung mengganti sesi.
+        // Tanpa key ini, MainShell dianggap widget yang sama sehingga
+        // deviceProvider.init() tidak pernah dipanggil ulang, dan data
+        // akun lama (terutama dari MQTT) tetap tersisa di layar.
+        return MainShell(key: ValueKey(userId));
       },
     );
   }

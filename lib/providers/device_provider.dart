@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../core/services/mqtt_service.dart';
@@ -9,8 +8,12 @@ import '../models/device_status.dart';
 class DeviceProvider with ChangeNotifier {
   MqttService? _mqttService;
 
+  // Getter publik agar shell bisa meneruskan ke KelolaJadwalScreen.
+  // Nullable karena init() berjalan async -- widget yang membaca ini
+  // sebelum init() selesai harus menangani null (lihat isSiap di bawah).
   MqttService? get mqttService => _mqttService;
 
+  // True setelah MqttService selesai dibuat, aman dipakai widget lain.
   bool get isSiap => _mqttService != null;
 
   // Diisi otomatis dari Supabase berdasarkan user yang sedang login.
@@ -21,6 +24,10 @@ class DeviceProvider with ChangeNotifier {
   bool isLoading = false;
   bool isMqttConnected = false;
 
+  /// Ambil UUID baris "lansia" milik user yang sedang login, sekaligus
+  /// namanya untuk ditampilkan di header sapaan dashboard.
+  /// Perlu dipanggil sebelum connect MQTT supaya bisa langsung
+  /// diprovisioning ke ESP32.
   Future<void> _muatLansiaId() async {
     final userId = SupabaseService.client.auth.currentUser?.id;
     if (userId == null) {
@@ -51,6 +58,20 @@ class DeviceProvider with ChangeNotifier {
   }
 
   Future<void> init() async {
+    // Reset ke kondisi awal setiap kali init() dipanggil (misal login
+    // dengan akun berbeda). Tanpa ini, data lama (terutama dari MQTT,
+    // seperti "Jadwal Hari Ini") akan tetap tampil kalau ESP32 sedang
+    // mati/offline dan tidak sempat publish data baru untuk menimpanya.
+    status = DeviceStatus.initial();
+    isMqttConnected = false;
+    _lansiaId = null;
+
+    // Putuskan koneksi MQTT lama (kalau ada dari sesi sebelumnya) supaya
+    // tidak ada dua koneksi/subscription menumpuk.
+    _mqttService?.disconnect();
+    _mqttService = null;
+
+
     isLoading = true;
     notifyListeners();
 
@@ -65,13 +86,6 @@ class DeviceProvider with ChangeNotifier {
     );
     _mqttService = mqtt;
 
-    isLoading = false;
-    notifyListeners();
-
-
-    unawaited(_connectMqtt(mqtt));
-  }
-  Future<void> _connectMqtt(MqttService mqtt) async {
     final connected = await mqtt.connect(
       _handleMessage,
       onConnectionChanged: (isConnected) {
@@ -82,7 +96,6 @@ class DeviceProvider with ChangeNotifier {
 
     if (connected) {
       isMqttConnected = true;
-      notifyListeners();
 
       mqtt.subscribe(MqttConfig.topicMedicineStatus);
       mqtt.subscribe(MqttConfig.topicMedicineStock);
@@ -100,17 +113,10 @@ class DeviceProvider with ChangeNotifier {
 
       await Future.delayed(const Duration(milliseconds: 500));
       await refreshDeviceStatus();
-    } else {
-      isMqttConnected = false;
-      notifyListeners();
     }
-  }
 
-  /// Dipanggil dari UI (misal tombol retry di banner) untuk coba konek
-  /// ulang tanpa perlu keluar-masuk app.
-  Future<void> cobaSambungkanUlang() async {
-    if (_mqttService == null) return;
-    await _connectMqtt(_mqttService!);
+    isLoading = false;
+    notifyListeners();
   }
 
   void _handleMessage(String topic, String payload) {
