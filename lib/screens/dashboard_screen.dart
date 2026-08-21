@@ -156,10 +156,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     // 6. Tombol Dispense Manual
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16.0),
-                      child: FilledButton.icon(
-                        icon: const Icon(Icons.medication_liquid),
-                        label: const Text("Keluarkan Obat Manual"),
-                        onPressed: () => _showDispenseConfirmationDialog(context),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.medication_liquid, size: 22),
+                          label: const Text(
+                            "Keluarkan Obat Manual",
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                          onPressed: () => _showDispenseConfirmationDialog(context),
+                        ),
                       ),
                     ),
                   ],

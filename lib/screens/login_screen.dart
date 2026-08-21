@@ -91,28 +91,44 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   // ── Logo ─────────────────────────────────────────
                   Center(
-                    child: Image.asset(
-                      'assets/images/logo1.png',
+                    child: Container(
                       width: 96,
                       height: 96,
-                      fit: BoxFit.contain,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: Image.asset(
+                        'assets/images/logo1.png',
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.xl),
 
                   // ── Headline ────────────────────────────────────────────
-                  Text(
-                    'Dispenser Obat Pintar',
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'Masuk untuk mengelola jadwal obat',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.muted,
+                  Center(
+                    child: Column(
+                      children: [
+                        Text(
+                          'Dispenser Obat Pintar',
+                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                            fontSize: 24,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          'Masuk untuk mengelola jadwal obat',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.muted,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
@@ -202,18 +218,32 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: AppSpacing.base),
 
                   // ── CTA Button ──────────────────────────────────────────
-                  FilledButton(
-                    onPressed: _isLoading ? null : _login,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.onPrimary,
-                            ),
-                          )
-                        : const Text('Masuk'),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      boxShadow: _isLoading
+                          ? []
+                          : [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.25),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                    ),
+                    child: FilledButton(
+                      onPressed: _isLoading ? null : _login,
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.onPrimary,
+                              ),
+                            )
+                          : const Text('Masuk'),
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.md),
 

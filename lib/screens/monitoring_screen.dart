@@ -64,21 +64,32 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _buildJudulSeksi('Frekuensi Pengambilan'),
-                DropdownButton<RentangWaktu>(
-                  value: _rentangFrekuensi,
-                  items: const [
-                    DropdownMenuItem(
-                      value: RentangWaktu.mingguan,
-                      child: Text('7 hari'),
-                    ),
-                    DropdownMenuItem(
-                      value: RentangWaktu.bulanan,
-                      child: Text('30 hari'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) _ubahRentang(value);
-                  },
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceSoft,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.hairline, width: 1),
+                  ),
+                  child: DropdownButton<RentangWaktu>(
+                    value: _rentangFrekuensi,
+                    underline: const SizedBox.shrink(),
+                    isDense: true,
+                    icon: const Icon(Icons.arrow_drop_down, size: 20),
+                    items: const [
+                      DropdownMenuItem(
+                        value: RentangWaktu.mingguan,
+                        child: Text('7 hari'),
+                      ),
+                      DropdownMenuItem(
+                        value: RentangWaktu.bulanan,
+                        child: Text('30 hari'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) _ubahRentang(value);
+                    },
+                  ),
                 ),
               ],
             ),
@@ -96,12 +107,25 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   }
 
   Widget _buildJudulSeksi(String judul) {
-    return Text(
-      judul,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: AppColors.ink,
-            fontWeight: FontWeight.w600,
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 20,
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(2),
           ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          judul,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      ],
     );
   }
 
@@ -110,9 +134,21 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       height: 260,
       padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
       decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.hairlineSoft, width: 1),
+        color: AppColors.canvas,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.hairline, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: child,
     );
@@ -345,18 +381,31 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           height: 12,
           decoration: BoxDecoration(
             color: warna,
-            borderRadius: BorderRadius.circular(AppRadius.xs),
+            borderRadius: BorderRadius.circular(3),
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            '$label ($jumlah)',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.body,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.muted,
+                ),
+              ),
+              Text(
+                '$jumlah',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink,
+                ),
+              ),
+            ],
           ),
         ),
       ],

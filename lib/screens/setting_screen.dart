@@ -126,84 +126,125 @@ class _SettingScreenState extends State<SettingScreen> {
       padding: const EdgeInsets.all(20),
       children: [
         // ── Info Akun ──────────────────────────────────────────────
-        Card(
-          elevation: 0,
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: AppColors.surfaceStrong,
-                  child: const Icon(Icons.person, size: 32, color: AppColors.ink),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.canvas,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.hairline, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 2,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Akun Anda',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.muted,
-                          fontWeight: FontWeight.w500,
-                        ),
+                child: const Icon(Icons.person_outline, size: 28, color: AppColors.primary),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Akun Anda',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.muted,
+                        fontWeight: FontWeight.w500,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        email,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.ink,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      email,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ink,
                       ),
-                    ],
-                  ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 16),
 
         // ── Notifikasi WhatsApp ───────────────────────────────────
-        Card(
-          elevation: 0,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: _isLoading
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: CircularProgressIndicator(),
-                    ),
-                  )
-                : Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.chat_bubble_outline, color: AppColors.primary),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Notifikasi WhatsApp',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.ink,
-                              ),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.canvas,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.hairline, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 2,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(20),
+          child: _isLoading
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              : Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Dikirim otomatis setiap obat diambil atau gagal diverifikasi.',
-                          style: theme.textTheme.bodySmall?.copyWith(color: AppColors.muted),
-                        ),
-                        const SizedBox(height: 16),
+                            child: const Icon(Icons.chat_bubble_outline, color: AppColors.success, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Notifikasi WhatsApp',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Dikirim otomatis setiap obat diambil atau gagal diverifikasi.',
+                        style: theme.textTheme.bodySmall?.copyWith(color: AppColors.muted),
+                      ),
+                      const SizedBox(height: 20),
 
                         TextFormField(
                           controller: _noHpKeluargaController,
@@ -296,42 +337,88 @@ class _SettingScreenState extends State<SettingScreen> {
                       ],
                     ),
                   ),
-          ),
         ),
         const SizedBox(height: 16),
 
         // ── Informasi Aplikasi ────────────────────────────────────
-        Card(
-          elevation: 0,
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.canvas,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.hairline, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 2,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
           child: Column(
             children: [
               ListTile(
-                leading: const Icon(Icons.info_outline, color: AppColors.muted),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceSoft,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.info_outline, color: AppColors.muted, size: 20),
+                ),
                 title: Text(
                   'Versi Aplikasi',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: AppColors.ink,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                trailing: Text(
-                  '1.0.0',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.muted),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceSoft,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '1.0.0',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.ink,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
-              const Divider(height: 1, indent: 16, endIndent: 16),
+              const Divider(height: 1, indent: 20, endIndent: 20),
               ListTile(
-                leading: const Icon(Icons.devices, color: AppColors.muted),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceSoft,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.devices, color: AppColors.muted, size: 20),
+                ),
                 title: Text(
                   'Nama Perangkat',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: AppColors.ink,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 trailing: Text(
                   'Dispenser Obat Pintar',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.muted),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.muted,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -340,18 +427,33 @@ class _SettingScreenState extends State<SettingScreen> {
         const SizedBox(height: 24),
 
         // ── Tombol Logout ─────────────────────────────────────────
-        FilledButton.icon(
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.error,
-            foregroundColor: AppColors.onPrimary,
-            padding: const EdgeInsets.symmetric(vertical: 14),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.error.withValues(alpha: 0.15),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          icon: const Icon(Icons.logout),
-          label: const Text(
-            'Keluar dari Akun',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.onPrimary,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: const Icon(Icons.logout, size: 20),
+            label: const Text(
+              'Keluar dari Akun',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            onPressed: () => _showLogoutDialog(context),
           ),
-          onPressed: () => _showLogoutDialog(context),
         ),
       ],
     );

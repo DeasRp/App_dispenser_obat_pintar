@@ -91,26 +91,54 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 // ── Logo ─────────────────────────────────────────
                 Center(
-                  child: Image.asset(
-                    'assets/images/logo1.png',
-                    width: 56,
-                    height: 56,
-                    fit: BoxFit.contain,
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: const EdgeInsets.all(14),
+                    child: Image.asset(
+                      'assets/images/logo1.png',
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
 
                 // ── Section: Akun ──────────────────────────────────────
-                Text(
-                  'Informasi Akun',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    color: AppColors.ink,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Data untuk login ke aplikasi',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Informasi Akun',
+                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                            color: AppColors.ink,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Data untuk login ke aplikasi',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
 
@@ -157,16 +185,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: AppSpacing.xxl),
 
                 // ── Section: Data Lansia ────────────────────────────────
-                Text(
-                  'Data Lansia',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    color: AppColors.ink,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Informasi orang yang menggunakan dispenser',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Data Lansia',
+                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                            color: AppColors.ink,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Informasi orang yang menggunakan dispenser',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
 
@@ -222,18 +271,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: AppSpacing.xxl),
 
                 // ── CTA Button ──────────────────────────────────────────
-                FilledButton(
-                  onPressed: _isLoading ? null : _daftar,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.onPrimary,
-                          ),
-                        )
-                      : const Text('Buat Akun'),
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    boxShadow: _isLoading
+                        ? []
+                        : [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.25),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                  ),
+                  child: FilledButton(
+                    onPressed: _isLoading ? null : _daftar,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.onPrimary,
+                            ),
+                          )
+                        : const Text('Buat Akun'),
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
               ],
