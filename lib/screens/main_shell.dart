@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/services/auth_service.dart';
 import '../providers/device_provider.dart';
 import 'dashboard_screen.dart';
 import 'kelola_jadwal_screen.dart';
 import 'monitoring_screen.dart';
 import 'setting_screen.dart';
 
-/// Shell utama dengan BottomNavigationBar.
-/// Mengelola perpindahan antara Home (Dashboard), Jadwal, Monitoring, dan Setting.
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -36,9 +35,6 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
-    // Trigger koneksi MQTT + muat lansiaId sekali saat shell pertama kali
-    // dibuka (setelah login). listen: false karena ini cuma memanggil
-    // fungsi, bukan butuh rebuild saat provider berubah.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DeviceProvider>().init();
     });
@@ -48,22 +44,104 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final deviceProvider = context.watch<DeviceProvider>();
 
-    // Selama MqttService belum siap (init() masih berjalan), tampilkan
-    // loading penuh -- mencegah KelolaJadwalScreen dibangun dengan
-    // mqttService yang masih null.
-    if (!deviceProvider.isSiap) {
+    if (deviceProvider.isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    // Daftar halaman — dibangun di sini agar KelolaJadwalScreen dan
-    // MonitoringScreen bisa mendapat argumen yang dibutuhkan dari provider.
+    if (deviceProvider.errorMessage != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Remindora')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 52),
+                const SizedBox(height: 16),
+                Text(
+                  deviceProvider.errorMessage!,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: () => deviceProvider.init(),
+                  child: const Text('Coba Lagi'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (deviceProvider.isKeluarga &&
+        !deviceProvider.sudahTerhubungDenganLansia) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Remindora Keluarga'),
+          actions: [
+            IconButton(
+              tooltip: 'Keluar',
+              onPressed: () async => AuthService().keluar(),
+              icon: const Icon(Icons.logout),
+            ),
+          ],
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.link_off, size: 72),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Akun belum terhubung dengan Lansia',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Hubungkan akun keluarga dengan akun Lansia agar jadwal, monitoring, dan status dispenser dapat ditampilkan.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: () => deviceProvider.refreshLansiaConnection(),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Periksa Koneksi Lansia'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final mqttService = deviceProvider.mqttService;
+    if (!deviceProvider.sudahTerhubungDenganLansia || mqttService == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Remindora')),
+        body: const Center(
+          child: Text('Koneksi dispenser belum tersedia.'),
+        ),
+      );
+    }
+
     final List<Widget> pages = [
       const DashboardScreen(),
       KelolaJadwalScreen(
         lansiaId: deviceProvider.lansiaId,
-        mqttService: deviceProvider.mqttService!,
+        mqttService: mqttService,
       ),
       MonitoringScreen(
         lansiaId: deviceProvider.lansiaId,
@@ -100,7 +178,6 @@ class _MainShellState extends State<MainShell> {
   }
 }
 
-/// Data class kecil untuk item navigasi.
 class _NavItem {
   final String label;
   final IconData icon;
