@@ -1,9 +1,10 @@
-
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import '../core/theme/app_theme.dart';
 
-// Widget untuk card "Stok Obat"
+// Widget ringkas untuk status stok obat.
+// Jangan gunakan Spacer/Expanded di sini karena card dapat berada di dalam
+// SingleChildScrollView yang memberi constraint tinggi tidak terbatas.
 class StockStatusCard extends StatelessWidget {
   final bool isLoading;
   final int stockPercentage;
@@ -23,56 +24,65 @@ class StockStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final indicatorColor = _getIndicatorColor(stockPercentage);
+    final safePercentage = stockPercentage.clamp(0, 100);
+    final indicatorColor = _getIndicatorColor(safePercentage);
 
     return Card(
       elevation: 0,
+      margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Stok Obat",
+              'Stok Obat',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: AppColors.ink,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const Spacer(),
+            const SizedBox(height: 14),
             if (isLoading)
-              _buildLoadingState(context)
+              _buildLoadingState()
             else
-              _buildContent(context, indicatorColor),
+              _buildContent(context, safePercentage, indicatorColor),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLoadingState(BuildContext context) {
+  Widget _buildLoadingState() {
     return Shimmer.fromColors(
-       baseColor: Colors.grey[300]!,
-       highlightColor: Colors.grey[100]!,
-       child: Column(
-         crossAxisAlignment: CrossAxisAlignment.start,
-         children: [
-            Container(height: 28, width: 80, color: Colors.white),
-            const SizedBox(height: 8),
-            Container(height: 8, width: double.infinity, color: Colors.white),
-         ],
-       ),
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(height: 28, width: 80, color: Colors.white),
+          const SizedBox(height: 8),
+          Container(height: 8, width: double.infinity, color: Colors.white),
+        ],
+      ),
     );
   }
-  
-  Widget _buildContent(BuildContext context, Color indicatorColor) {
+
+  Widget _buildContent(
+    BuildContext context,
+    int percentage,
+    Color indicatorColor,
+  ) {
     final theme = Theme.of(context);
+
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Text(
-          "$stockPercentage%",
+          '$percentage%',
           style: theme.textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.w700,
             color: indicatorColor,
@@ -80,7 +90,7 @@ class StockStatusCard extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         LinearProgressIndicator(
-          value: stockPercentage / 100,
+          value: percentage / 100,
           backgroundColor: indicatorColor.withValues(alpha: 0.12),
           valueColor: AlwaysStoppedAnimation<Color>(indicatorColor),
           minHeight: 6,
@@ -90,4 +100,3 @@ class StockStatusCard extends StatelessWidget {
     );
   }
 }
-
