@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/services/auth_service.dart';
-import '../core/services/supabase_service.dart';
 import '../core/theme/app_theme.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -16,9 +15,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _namaLansiaController = TextEditingController();
+  final _namaController = TextEditingController();
   final _noHpController = TextEditingController();
 
+  UserRole _role = UserRole.lansia;
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
@@ -35,29 +35,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final response = await _authService.daftar(
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        nama: _namaController.text.trim(),
+        role: _role,
+        noHp: _noHpController.text.trim(),
       );
 
-      final userId = response.user?.id;
-      if (userId == null) {
+      if (response.user == null) {
         throw Exception('Pendaftaran gagal, silakan coba lagi.');
       }
 
-      // Langsung buat data lansia pertama yang terkait dengan akun ini,
-      // supaya user tidak perlu langkah tambahan setelah daftar.
-      await SupabaseService.client.from('lansia').insert({
-        'user_id': userId,
-        'nama': _namaLansiaController.text.trim(),
-        'no_hp_keluarga': _noHpController.text.trim(),
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pendaftaran berhasil! Cek email untuk verifikasi jika diminta.'),
-          ),
-        );
-        Navigator.pop(context);
+      // Jika email confirmation dimatikan, session biasanya langsung aktif
+      // dan baris lansia dapat dibuat sekarang. Jika confirmation aktif,
+      // ensureLansiaRecord() akan dijalankan otomatis saat login pertama.
+      if (response.session != null && _role == UserRole.lansia) {
+        await _authService.ensureLansiaRecord();
       }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            response.session == null
+                ? 'Pendaftaran berhasil. Silakan verifikasi email lalu login.'
+                : 'Pendaftaran berhasil.',
+          ),
+        ),
+      );
+      Navigator.pop(context);
     } on AuthException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {
@@ -65,6 +69,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _namaController.dispose();
+    _noHpController.dispose();
+    super.dispose();
   }
 
   @override
@@ -89,7 +102,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // ── Logo ─────────────────────────────────────────
                 Center(
                   child: Container(
                     width: 72,
@@ -99,48 +111,54 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       shape: BoxShape.circle,
                     ),
                     padding: const EdgeInsets.all(14),
-                    child: Image.asset(
-                      'assets/images/logo1.png',
-                      fit: BoxFit.contain,
-                    ),
+                    child: Image.asset('assets/images/logo1.png'),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.xl),
 
-                // ── Section: Akun ──────────────────────────────────────
-                Row(
-                  children: [
-                    Container(
-                      width: 4,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(2),
+                Text(
+                  'Daftar sebagai',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
+                ),
+                const SizedBox(height: 10),
+                SegmentedButton<UserRole>(
+                  segments: const [
+                    ButtonSegment(
+                      value: UserRole.lansia,
+                      label: Text('Lansia'),
+                      icon: Icon(Icons.person_outline),
                     ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Informasi Akun',
-                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                            color: AppColors.ink,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Data untuk login ke aplikasi',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.muted,
-                          ),
-                        ),
-                      ],
+                    ButtonSegment(
+                      value: UserRole.keluarga,
+                      label: Text('Keluarga'),
+                      icon: Icon(Icons.family_restroom),
                     ),
                   ],
+                  selected: {_role},
+                  onSelectionChanged: (value) {
+                    setState(() => _role = value.first);
+                  },
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.xl),
+
+                TextFormField(
+                  controller: _namaController,
+                  decoration: InputDecoration(
+                    labelText: _role == UserRole.lansia
+                        ? 'Nama Lansia'
+                        : 'Nama Anggota Keluarga',
+                    prefixIcon: const Icon(Icons.person_outline),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Nama wajib diisi';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
 
                 TextFormField(
                   controller: _emailController,
@@ -169,10 +187,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         _obscurePassword
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
-                        color: AppColors.muted,
                       ),
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
+                      onPressed: () => setState(
+                        () => _obscurePassword = !_obscurePassword,
+                      ),
                     ),
                   ),
                   validator: (value) {
@@ -182,65 +200,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: AppSpacing.xxl),
-
-                // ── Section: Data Lansia ────────────────────────────────
-                Row(
-                  children: [
-                    Container(
-                      width: 4,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Data Lansia',
-                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                            color: AppColors.ink,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Informasi orang yang menggunakan dispenser',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.muted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.lg),
-
-                TextFormField(
-                  controller: _namaLansiaController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nama lengkap',
-                    prefixIcon: Icon(Icons.person_outline),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Nama lansia wajib diisi';
-                    }
-                    return null;
-                  },
-                ),
                 const SizedBox(height: AppSpacing.md),
 
                 TextFormField(
                   controller: _noHpController,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'No. HP keluarga',
-                    prefixIcon: Icon(Icons.phone_outlined),
-                    helperText: 'Untuk notifikasi WhatsApp',
+                  decoration: InputDecoration(
+                    labelText: _role == UserRole.lansia
+                        ? 'No. HP Lansia'
+                        : 'No. HP Keluarga',
+                    prefixIcon: const Icon(Icons.phone_outlined),
+                    helperText: 'Digunakan untuk kontak/notifikasi',
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -250,7 +220,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
 
-                // ── Error message ───────────────────────────────────────
+                if (_role == UserRole.keluarga) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: const Text(
+                      'Setelah login, akun Keluarga perlu dihubungkan dengan akun Lansia. Fitur pairing akan menggunakan relasi keluarga_lansia.',
+                    ),
+                  ),
+                ],
+
                 if (_errorMessage != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   Container(
@@ -261,44 +244,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(
-                        color: AppColors.error,
-                        fontSize: 14,
-                      ),
+                      style: const TextStyle(color: AppColors.error),
                     ),
                   ),
                 ],
-                const SizedBox(height: AppSpacing.xxl),
 
-                // ── CTA Button ──────────────────────────────────────────
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    boxShadow: _isLoading
-                        ? []
-                        : [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.25),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                  ),
-                  child: FilledButton(
-                    onPressed: _isLoading ? null : _daftar,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.onPrimary,
-                            ),
-                          )
-                        : const Text('Buat Akun'),
-                  ),
+                const SizedBox(height: AppSpacing.xxl),
+                FilledButton(
+                  onPressed: _isLoading ? null : _daftar,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Buat Akun'),
                 ),
-                const SizedBox(height: AppSpacing.lg),
               ],
             ),
           ),
