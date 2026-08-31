@@ -7,6 +7,7 @@ import 'dashboard_screen.dart';
 import 'hubungkan_lansia_screen.dart';
 import 'kelola_jadwal_screen.dart';
 import 'monitoring_screen.dart';
+import 'notifikasi_screen.dart';
 import 'setting_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -46,6 +47,18 @@ class _MainShellState extends State<MainShell> {
       MaterialPageRoute(
         builder: (_) => HubungkanLansiaScreen(
           onTerhubung: deviceProvider.refreshLansiaConnection,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _bukaNotifikasi(DeviceProvider deviceProvider) async {
+    if (deviceProvider.lansiaId.isEmpty) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NotifikasiScreen(
+          lansiaId: deviceProvider.lansiaId,
         ),
       ),
     );
@@ -172,6 +185,13 @@ class _MainShellState extends State<MainShell> {
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
         centerTitle: false,
+        actions: [
+          IconButton(
+            tooltip: 'Notifikasi',
+            onPressed: () => _bukaNotifikasi(deviceProvider),
+            icon: const Icon(Icons.notifications_outlined),
+          ),
+        ],
       ),
       body: IndexedStack(
         index: _selectedIndex,
