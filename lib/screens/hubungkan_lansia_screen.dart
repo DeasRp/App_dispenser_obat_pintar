@@ -39,6 +39,7 @@ class _HubungkanLansiaScreenState extends State<HubungkanLansiaScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Akun berhasil terhubung dengan Lansia.')),
       );
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       setState(() {
