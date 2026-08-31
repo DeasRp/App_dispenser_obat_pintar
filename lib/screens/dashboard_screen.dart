@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../models/jadwal_obat_model.dart';
 import '../providers/device_provider.dart';
 import '../repositories/jadwal_repository.dart';
-import '../models/jadwal_obat_model.dart';
 import '../widgets/connection_status_banner.dart';
 import '../widgets/dashboard_header.dart';
+import '../widgets/last_medicine_taken_card.dart';
 import '../widgets/next_schedule_card.dart';
 import '../widgets/stock_status_card.dart';
-import '../widgets/glass_status_card.dart';
-import '../widgets/today_schedule_list.dart';
-import '../widgets/last_medicine_taken_card.dart';
 
-// Halaman utama / Dashboard Aplikasi
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -36,33 +34,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _showDispenseConfirmationDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (BuildContext dialogContext) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text("Konfirmasi"),
+          title: const Text('Konfirmasi'),
           content: const Text(
-              "Apakah Anda yakin ingin mengeluarkan obat secara manual?"),
-          actions: <Widget>[
+            'Apakah Anda yakin ingin mengeluarkan obat secara manual?',
+          ),
+          actions: [
             TextButton(
-              child: const Text("Batal"),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Batal'),
             ),
             FilledButton(
-              child: const Text("Ya, Keluarkan"),
               onPressed: () {
                 context.read<DeviceProvider>().publishDispenseCommand();
                 Navigator.of(dialogContext).pop();
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text("Perintah mengeluarkan obat dikirim..."),
+                    content: Text('Perintah mengeluarkan obat dikirim.'),
                     duration: Duration(seconds: 2),
                   ),
                 );
               },
+              child: const Text('Keluarkan'),
             ),
           ],
         );
@@ -74,7 +71,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Consumer<DeviceProvider>(
       builder: (context, deviceProvider, child) {
-        // Muat riwayat terakhir sekali saja saat lansiaId sudah tersedia.
         _riwayatTerakhirFuture ??= deviceProvider.lansiaId.isNotEmpty
             ? _jadwalRepo.getRiwayatTerakhir(deviceProvider.lansiaId)
             : null;
@@ -85,15 +81,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onRefresh: () => _refreshSemua(deviceProvider),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    // 1. Header: Sapaan + Nama Lansia
-                    DashboardHeader(namaLansia: deviceProvider.status.namaLansia),
+                  children: [
+                    DashboardHeader(
+                      namaLansia: deviceProvider.status.namaLansia,
+                    ),
                     const SizedBox(height: 8),
 
-                    // 2. Banner Status Koneksi (Dispenser Online + WiFi)
                     ConnectionStatusBanner(
                       isLoading: deviceProvider.isLoading,
                       isOnline: deviceProvider.status.isDeviceOnline,
@@ -101,86 +97,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 3. Card "Jadwal Berikutnya"
                     NextScheduleCard(
                       isLoading: deviceProvider.isLoading,
                       nextScheduleTime: deviceProvider.status.nextScheduleTime,
                       nextScheduleObat: deviceProvider.status.nextScheduleObat,
-                      nextScheduleJumlah: deviceProvider.status.nextScheduleJumlah,
+                      nextScheduleJumlah:
+                          deviceProvider.status.nextScheduleJumlah,
                     ),
                     const SizedBox(height: 12),
 
-                    // 4. Grid 2 Kolom (Stok & Gelas)
-                    GridView.count(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      childAspectRatio: 1.5,
-                      children: [
-                        StockStatusCard(
-                          isLoading: deviceProvider.isLoading,
-                          stockPercentage: deviceProvider.status.stokObatPercent,
-                        ),
-                        GlassStatusCard(
-                          isLoading: deviceProvider.isLoading,
-                          statusGelasTerisi: deviceProvider.status.statusGelasTerisi,
-                        ),
-                      ],
+                    StockStatusCard(
+                      isLoading: deviceProvider.isLoading,
+                      stockPercentage: deviceProvider.status.stokObatPercent,
                     ),
                     const SizedBox(height: 12),
 
-                    // 5. Last Medicine Taken
                     FutureBuilder<RiwayatKonsumsiModel?>(
                       future: _riwayatTerakhirFuture,
                       builder: (context, snapshot) {
                         final riwayat = snapshot.data;
                         return LastMedicineTakenCard(
-                          isLoading: snapshot.connectionState == ConnectionState.waiting,
+                          isLoading:
+                              snapshot.connectionState == ConnectionState.waiting,
                           namaObatTerakhir: riwayat?.namaObat,
                           waktuTerakhir: riwayat?.waktuDiambil,
                           statusTerakhir: riwayat?.status,
                         );
                       },
                     ),
-                    const SizedBox(height: 12),
-
-                    // 6. Card "Jadwal Hari Ini"
-                    TodayScheduleList(
-                      isLoading: deviceProvider.isLoading,
-                      schedules: deviceProvider.status.todaySchedule,
-                    ),
                     const SizedBox(height: 16),
 
-                    // 6. Tombol Dispense Manual
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: const Icon(Icons.medication_liquid, size: 22),
-                          label: const Text(
-                            "Keluarkan Obat Manual",
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                          ),
-                          onPressed: () => _showDispenseConfirmationDialog(context),
-                        ),
+                    FilledButton.icon(
+                      onPressed: deviceProvider.isMqttConnected
+                          ? () => _showDispenseConfirmationDialog(context)
+                          : null,
+                      icon: const Icon(Icons.medication_outlined),
+                      label: const Text('Keluarkan Obat Manual'),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
                     ),
                   ],
