@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/services/auth_service.dart';
 import '../providers/device_provider.dart';
 import 'dashboard_screen.dart';
+import 'hubungkan_lansia_screen.dart';
 import 'kelola_jadwal_screen.dart';
 import 'monitoring_screen.dart';
 import 'setting_screen.dart';
@@ -38,6 +39,16 @@ class _MainShellState extends State<MainShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DeviceProvider>().init();
     });
+  }
+
+  Future<void> _bukaPairing(DeviceProvider deviceProvider) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => HubungkanLansiaScreen(
+          onTerhubung: deviceProvider.refreshLansiaConnection,
+        ),
+      ),
+    );
   }
 
   @override
@@ -110,14 +121,20 @@ class _MainShellState extends State<MainShell> {
                   ),
                   const SizedBox(height: 10),
                   const Text(
-                    'Hubungkan akun keluarga dengan akun Lansia agar jadwal, monitoring, dan status dispenser dapat ditampilkan.',
+                    'Masukkan email akun Lansia untuk menghubungkan akun keluarga dengan dispenser yang dipantau.',
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
                   FilledButton.icon(
+                    onPressed: () => _bukaPairing(deviceProvider),
+                    icon: const Icon(Icons.link),
+                    label: const Text('Hubungkan dengan Email Lansia'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton.icon(
                     onPressed: () => deviceProvider.refreshLansiaConnection(),
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Periksa Koneksi Lansia'),
+                    label: const Text('Periksa Ulang Koneksi'),
                   ),
                 ],
               ),
