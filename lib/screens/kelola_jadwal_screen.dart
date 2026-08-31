@@ -28,6 +28,11 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
   final _repo = JadwalRepository();
   late Future<List<JadwalObatModel>> _jadwalFuture;
 
+  // Harus SAMA dengan JUMLAH_KOMPARTEMEN di firmware ESP32
+  // (dispenser_obat_pintar_fixed.ino). Kalau nanti jumlah kompartemen
+  // fisik carousel berubah, ubah nilai ini juga.
+  static const int jumlahKompartemen = 6;
+
   @override
   void initState() {
     super.initState();
@@ -64,9 +69,10 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
   Future<void> _bukaDialogJadwal({JadwalObatModel? jadwalLama}) async {
     final obatController = TextEditingController(text: jadwalLama?.namaObat ?? '');
     final jumlahController = TextEditingController(text: jadwalLama?.jumlah ?? '1 tablet');
-    final urutanController = TextEditingController(
-      text: (jadwalLama?.urutanKompartemen ?? 0).toString(),
-    );
+    int urutanTerpilih = jadwalLama?.urutanKompartemen ?? 0;
+    if (urutanTerpilih < 0 || urutanTerpilih >= jumlahKompartemen) {
+      urutanTerpilih = 0; // jaga-jaga kalau data lama di luar rentang baru
+    }
 
     TimeOfDay jamTerpilih = _parseJamAwal(jadwalLama?.jam);
 
@@ -147,13 +153,22 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
-                    controller: urutanController,
+                  DropdownButtonFormField<int>(
+                    value: urutanTerpilih,
                     decoration: const InputDecoration(
-                      labelText: 'Urutan Kompartemen Carousel',
-                      hintText: '0, 1, 2, ...',
+                      labelText: 'Kompartemen Carousel',
                     ),
-                    keyboardType: TextInputType.number,
+                    items: List.generate(jumlahKompartemen, (i) => i)
+                        .map((i) => DropdownMenuItem(
+                              value: i,
+                              child: Text('Kompartemen #$i'),
+                            ))
+                        .toList(),
+                    onChanged: (nilai) {
+                      if (nilai != null) {
+                        setDialogState(() => urutanTerpilih = nilai);
+                      }
+                    },
                   ),
                 ],
               ),
@@ -182,13 +197,23 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
       jumlah: jumlahController.text.trim(),
       // Track audio ditentukan otomatis dari jam, user tidak perlu isi manual.
       trackAudio: tentukanTrackAudio(jamTerpilih),
-      urutanKompartemen: int.tryParse(urutanController.text.trim()) ?? 0,
+      urutanKompartemen: urutanTerpilih,
     );
 
-    if (jadwalLama == null) {
-      await _repo.tambahJadwal(jadwalBaru);
-    } else {
-      await _repo.updateJadwal(jadwalLama.id!, jadwalBaru);
+    try {
+      if (jadwalLama == null) {
+        await _repo.tambahJadwal(jadwalBaru);
+      } else {
+        await _repo.updateJadwal(jadwalLama.id!, jadwalBaru);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final pesan = e.toString().contains('duplicate') ||
+              e.toString().contains('uq_kompartemen_aktif_per_lansia')
+          ? 'Kompartemen #$urutanTerpilih sudah dipakai jadwal aktif lain. Pilih kompartemen lain.'
+          : 'Gagal menyimpan jadwal. Coba lagi.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(pesan)));
+      return;
     }
 
     _sinkronKeESP32();
