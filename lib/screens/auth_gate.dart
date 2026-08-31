@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/services/auth_service.dart';
 import 'login_screen.dart';
-import 'main_shell.dart';
+import 'role_gate.dart';
 
-/// Widget ini dipasang sebagai `home:` di MaterialApp.
-/// Otomatis menampilkan LoginScreen kalau belum login, atau
-/// MainShell (dengan bottom nav) kalau sudah login -- dan berpindah
-/// otomatis setiap kali status auth berubah (login/logout/token refresh).
+/// Widget root autentikasi.
+///
+/// Belum login -> LoginScreen
+/// Sudah login -> RoleGate -> profiles.role -> Lansia / Keluarga
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
@@ -25,14 +25,9 @@ class AuthGate extends StatelessWidget {
           return const LoginScreen();
         }
 
-        // PENTING: key berbasis userId memaksa Flutter membuat instance
-        // MainShell baru (State + initState terpanggil ulang) setiap kali
-        // user yang login berganti -- misalnya saat daftar akun baru tanpa
-        // logout eksplisit dulu, di mana Supabase langsung mengganti sesi.
-        // Tanpa key ini, MainShell dianggap widget yang sama sehingga
-        // deviceProvider.init() tidak pernah dipanggil ulang, dan data
-        // akun lama (terutama dari MQTT) tetap tersisa di layar.
-        return MainShell(key: ValueKey(userId));
+        // Key berbasis user memastikan role/profile dimuat ulang ketika
+        // akun yang aktif berubah.
+        return RoleGate(key: ValueKey(userId));
       },
     );
   }
