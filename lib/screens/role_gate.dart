@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+
 import '../core/services/auth_service.dart';
 import '../core/theme/app_theme.dart';
 import 'main_shell.dart';
 
 /// Menentukan tampilan utama berdasarkan `profiles.role`.
 ///
-/// Tahap migrasi auth/role:
-/// - Lansia masuk ke MainShell yang sudah ada.
-/// - Keluarga diarahkan ke placeholder khusus sampai alur pairing
-///   `keluarga_lansia` selesai pada tahap berikutnya.
+/// Baik Lansia maupun Keluarga masuk ke MainShell.
+/// Perbedaan cara mendapatkan `lansia_id` ditangani oleh DeviceProvider:
+/// - Lansia   -> lansia.user_id = auth.uid()
+/// - Keluarga -> keluarga_lansia.keluarga_user_id = auth.uid()
 class RoleGate extends StatefulWidget {
   const RoleGate({super.key});
 
@@ -56,7 +57,11 @@ class _RoleGateState extends State<RoleGate> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: AppColors.error,
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       'Gagal memuat profil akun.',
@@ -107,64 +112,8 @@ class _RoleGateState extends State<RoleGate> {
           );
         }
 
-        if (profile.role == UserRole.lansia) {
-          return const MainShell();
-        }
-
-        return _KeluargaLanding(profile: profile);
+        return const MainShell();
       },
-    );
-  }
-}
-
-class _KeluargaLanding extends StatelessWidget {
-  final AppProfile profile;
-
-  const _KeluargaLanding({required this.profile});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Remindora Keluarga'),
-        actions: [
-          IconButton(
-            tooltip: 'Keluar',
-            onPressed: () async => AuthService().keluar(),
-            icon: const Icon(Icons.logout),
-          ),
-        ],
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.family_restroom,
-                  size: 72,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Halo, ${profile.nama}',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Akun Anda terdaftar sebagai Keluarga. Tahap berikutnya adalah menghubungkan akun ini dengan Lansia melalui tabel keluarga_lansia / kode pairing.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.muted),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
