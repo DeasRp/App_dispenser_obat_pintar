@@ -1,122 +1,162 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+
+import '../core/constants/mqtt_config.dart';
+import '../core/services/auth_service.dart';
 import '../core/services/mqtt_service.dart';
 import '../core/services/supabase_service.dart';
-import '../core/constants/mqtt_config.dart';
 import '../models/device_status.dart';
 
 class DeviceProvider with ChangeNotifier {
   MqttService? _mqttService;
-
-  // Getter publik agar shell bisa meneruskan ke KelolaJadwalScreen.
-  // Nullable karena init() berjalan async -- widget yang membaca ini
-  // sebelum init() selesai harus menangani null (lihat isSiap di bawah).
   MqttService? get mqttService => _mqttService;
 
-  // True setelah MqttService selesai dibuat, aman dipakai widget lain.
-  bool get isSiap => _mqttService != null;
+  AppProfile? _profile;
+  AppProfile? get profile => _profile;
+  UserRole? get role => _profile?.role;
+  bool get isLansia => role == UserRole.lansia;
+  bool get isKeluarga => role == UserRole.keluarga;
 
-  // Diisi otomatis dari Supabase berdasarkan user yang sedang login.
   String? _lansiaId;
   String get lansiaId => _lansiaId ?? '';
+  bool get sudahTerhubungDenganLansia =>
+      _lansiaId != null && _lansiaId!.isNotEmpty;
 
   DeviceStatus status = DeviceStatus.initial();
   bool isLoading = false;
   bool isMqttConnected = false;
+  String? errorMessage;
 
-  /// Ambil UUID baris "lansia" milik user yang sedang login, sekaligus
-  /// namanya untuk ditampilkan di header sapaan dashboard.
-  /// Perlu dipanggil sebelum connect MQTT supaya bisa langsung
-  /// diprovisioning ke ESP32.
+  Future<void> _muatProfile() async {
+    _profile = await AuthService().getCurrentProfile();
+    if (_profile == null) {
+      throw Exception('Profil pengguna tidak ditemukan.');
+    }
+  }
+
   Future<void> _muatLansiaId() async {
     final userId = SupabaseService.client.auth.currentUser?.id;
     if (userId == null) {
-      debugPrint('Tidak ada user login, lansiaId tidak bisa dimuat.');
+      throw Exception('Tidak ada pengguna yang sedang login.');
+    }
+
+    if (_profile == null) {
+      throw Exception('Profil pengguna belum dimuat.');
+    }
+
+    if (_profile!.role == UserRole.lansia) {
+      await _muatLansiaUntukAkunLansia(userId);
+    } else {
+      await _muatLansiaUntukAkunKeluarga(userId);
+    }
+  }
+
+  Future<void> _muatLansiaUntukAkunLansia(String userId) async {
+    final response = await SupabaseService.client
+        .from('lansia')
+        .select('id, nama')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    _lansiaId = response?['id'] as String?;
+    final nama = response?['nama'] as String?;
+
+    if (nama != null && nama.isNotEmpty) {
+      status = status.copyWith(namaLansia: nama);
+    }
+  }
+
+  Future<void> _muatLansiaUntukAkunKeluarga(String userId) async {
+    final response = await SupabaseService.client
+        .from('keluarga_lansia')
+        .select('lansia_id, lansia(id, nama)')
+        .eq('keluarga_user_id', userId)
+        .limit(1)
+        .maybeSingle();
+
+    if (response == null) {
+      _lansiaId = null;
       return;
     }
 
-    try {
-      final response = await SupabaseService.client
-          .from('lansia')
-          .select('id, nama')
-          .eq('user_id', userId)
-          .maybeSingle();
+    _lansiaId = response['lansia_id'] as String?;
 
-      _lansiaId = response?['id'] as String?;
-
-      final nama = response?['nama'] as String?;
+    final lansiaData = response['lansia'];
+    if (lansiaData is Map<String, dynamic>) {
+      final nama = lansiaData['nama'] as String?;
       if (nama != null && nama.isNotEmpty) {
         status = status.copyWith(namaLansia: nama);
       }
-
-      if (_lansiaId == null) {
-        debugPrint('Data lansia untuk user ini belum ditemukan di Supabase.');
-      }
-    } catch (e) {
-      debugPrint('Gagal memuat lansiaId dari Supabase: $e');
     }
   }
 
   Future<void> init() async {
-    // Reset ke kondisi awal setiap kali init() dipanggil (misal login
-    // dengan akun berbeda). Tanpa ini, data lama (terutama dari MQTT,
-    // seperti "Jadwal Hari Ini") akan tetap tampil kalau ESP32 sedang
-    // mati/offline dan tidak sempat publish data baru untuk menimpanya.
     status = DeviceStatus.initial();
     isMqttConnected = false;
+    errorMessage = null;
+    _profile = null;
     _lansiaId = null;
 
-    // Putuskan koneksi MQTT lama (kalau ada dari sesi sebelumnya) supaya
-    // tidak ada dua koneksi/subscription menumpuk.
     _mqttService?.disconnect();
     _mqttService = null;
-
 
     isLoading = true;
     notifyListeners();
 
-    await _muatLansiaId();
+    try {
+      await _muatProfile();
+      await _muatLansiaId();
 
-    final mqtt = MqttService(
-      broker: MqttConfig.broker,
-      port: MqttConfig.port,
-      clientId: 'flutter_dispenser_obat_${DateTime.now().millisecondsSinceEpoch}',
-      username: MqttConfig.username,
-      password: MqttConfig.password,
-    );
-    _mqttService = mqtt;
-
-    final connected = await mqtt.connect(
-      _handleMessage,
-      onConnectionChanged: (isConnected) {
-        isMqttConnected = isConnected;
-        notifyListeners();
-      },
-    );
-
-    if (connected) {
-      isMqttConnected = true;
-
-      mqtt.subscribe(MqttConfig.topicMedicineStatus);
-      mqtt.subscribe(MqttConfig.topicMedicineStock);
-      mqtt.subscribe(MqttConfig.topicMedicineGlass);
-      mqtt.subscribe(MqttConfig.topicMedicineSchedule);
-      mqtt.subscribe(MqttConfig.topicMedicineHistory);
-      mqtt.subscribe(MqttConfig.topicMedicineNotify);
-
-      // Kirim Lansia ID ke ESP32 supaya alat tahu jadwal siapa yang harus
-      // diambil dari Supabase. Aman dikirim berulang setiap connect;
-      // ESP32 hanya menyimpan ulang ke memori jika ID berbeda.
-      if (_lansiaId != null) {
-        mqtt.publish(MqttConfig.topicCmdSetLansia, _lansiaId!);
+      if (!sudahTerhubungDenganLansia) {
+        return;
       }
 
-      await Future.delayed(const Duration(milliseconds: 500));
-      await refreshDeviceStatus();
-    }
+      final mqtt = MqttService(
+        broker: MqttConfig.broker,
+        port: MqttConfig.port,
+        clientId:
+            'flutter_dispenser_obat_${DateTime.now().millisecondsSinceEpoch}',
+        username: MqttConfig.username,
+        password: MqttConfig.password,
+      );
 
-    isLoading = false;
-    notifyListeners();
+      _mqttService = mqtt;
+
+      final connected = await mqtt.connect(
+        _handleMessage,
+        onConnectionChanged: (isConnected) {
+          isMqttConnected = isConnected;
+          notifyListeners();
+        },
+      );
+
+      if (connected) {
+        isMqttConnected = true;
+
+        mqtt.subscribe(MqttConfig.topicMedicineStatus);
+        mqtt.subscribe(MqttConfig.topicMedicineStock);
+        mqtt.subscribe(MqttConfig.topicMedicineGlass);
+        mqtt.subscribe(MqttConfig.topicMedicineSchedule);
+        mqtt.subscribe(MqttConfig.topicMedicineHistory);
+        mqtt.subscribe(MqttConfig.topicMedicineNotify);
+
+        mqtt.publish(MqttConfig.topicCmdSetLansia, _lansiaId!);
+
+        await Future.delayed(const Duration(milliseconds: 500));
+        await refreshDeviceStatus();
+      }
+    } catch (e) {
+      errorMessage = e.toString();
+      debugPrint('DeviceProvider init gagal: $e');
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> refreshLansiaConnection() async {
+    await init();
   }
 
   void _handleMessage(String topic, String payload) {
