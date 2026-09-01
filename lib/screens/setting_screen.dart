@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../core/services/auth_service.dart';
 import '../core/theme/app_theme.dart';
+import '../providers/device_provider.dart';
+import '../repositories/keluarga_repository.dart';
 import '../repositories/lansia_repository.dart';
+import 'hubungkan_lansia_screen.dart';
 
-/// Screen pengaturan: informasi akun, kontak & target notifikasi
-/// WhatsApp, dan tombol logout.
 class SettingScreen extends StatefulWidget {
   final String lansiaId;
 
@@ -16,14 +19,17 @@ class SettingScreen extends StatefulWidget {
 
 class _SettingScreenState extends State<SettingScreen> {
   final _repo = LansiaRepository();
+  final _keluargaRepo = KeluargaRepository();
   final _formKey = GlobalKey<FormState>();
   final _noHpKeluargaController = TextEditingController();
   final _noHpLansiaController = TextEditingController();
 
-  String _target = 'keluarga'; // 'keluarga' | 'lansia'
+  String _target = 'keluarga';
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isManagingRelation = false;
   String? _errorMessage;
+  Future<LansiaTerhubungModel?>? _relationFuture;
 
   @override
   void initState() {
@@ -33,9 +39,10 @@ class _SettingScreenState extends State<SettingScreen> {
 
   Future<void> _muatData() async {
     if (widget.lansiaId.isEmpty) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
+
     try {
       final kontak = await _repo.getKontak(widget.lansiaId);
       _noHpKeluargaController.text = kontak.noHpKeluarga;
@@ -50,10 +57,12 @@ class _SettingScreenState extends State<SettingScreen> {
 
   Future<void> _simpan() async {
     if (!_formKey.currentState!.validate()) return;
-    // Kalau target notifikasi "lansia" tapi nomor lansia kosong, cegah
-    // supaya tidak tersimpan setting yang bikin notifikasi gagal terkirim.
+
     if (_target == 'lansia' && _noHpLansiaController.text.trim().isEmpty) {
-      setState(() => _errorMessage = 'Isi No. HP Lansia dulu, atau pilih target "Keluarga".');
+      setState(() {
+        _errorMessage =
+            'Isi No. HP Lansia dulu, atau pilih target "Keluarga".';
+      });
       return;
     }
 
@@ -69,15 +78,88 @@ class _SettingScreenState extends State<SettingScreen> {
         noHpLansia: _noHpLansiaController.text.trim(),
         notifikasiTarget: _target,
       );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pengaturan notifikasi berhasil disimpan.')),
+          const SnackBar(
+            content: Text('Pengaturan notifikasi berhasil disimpan.'),
+          ),
         );
       }
     } catch (e) {
-      setState(() => _errorMessage = 'Gagal menyimpan: $e');
+      if (mounted) setState(() => _errorMessage = 'Gagal menyimpan: $e');
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _refreshRelation() {
+    setState(() {
+      _relationFuture = _keluargaRepo.getLansiaTerhubung();
+    });
+  }
+
+  Future<void> _bukaPairing(DeviceProvider deviceProvider) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => HubungkanLansiaScreen(
+          onTerhubung: () async {
+            await deviceProvider.refreshLansiaConnection();
+            _refreshRelation();
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _putuskanHubungan(
+    DeviceProvider deviceProvider,
+    LansiaTerhubungModel lansia,
+  ) async {
+    final konfirmasi = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Putuskan Hubungan?'),
+        content: Text(
+          'Akun keluarga tidak akan lagi memantau ${lansia.nama}. '
+          'Jadwal dan data Lansia tidak akan dihapus.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.onPrimary,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Putuskan'),
+          ),
+        ],
+      ),
+    );
+
+    if (konfirmasi != true) return;
+
+    setState(() => _isManagingRelation = true);
+    try {
+      await _keluargaRepo.putuskanHubungan(lansia.lansiaId);
+      await deviceProvider.refreshLansiaConnection();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Hubungan dengan Lansia diputuskan.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memutuskan hubungan: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isManagingRelation = false);
     }
   }
 
@@ -100,11 +182,227 @@ class _SettingScreenState extends State<SettingScreen> {
             onPressed: () async {
               Navigator.of(dialogContext).pop();
               await AuthService().keluar();
-              // AuthGate otomatis redirect ke LoginScreen
             },
             child: const Text('Ya, Keluar'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _cardContainer({required Widget child}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.canvas,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.hairline, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: child,
+    );
+  }
+
+  Widget _buildRelationCard(
+    BuildContext context,
+    DeviceProvider deviceProvider,
+  ) {
+    final theme = Theme.of(context);
+    _relationFuture ??= _keluargaRepo.getLansiaTerhubung();
+
+    return _cardContainer(
+      child: FutureBuilder<LansiaTerhubungModel?>(
+        future: _relationFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Hubungan Keluarga ↔ Lansia',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Gagal memuat hubungan: ${snapshot.error}',
+                  style: const TextStyle(color: AppColors.error),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _refreshRelation,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Coba Lagi'),
+                ),
+              ],
+            );
+          }
+
+          final lansia = snapshot.data;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.family_restroom,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Hubungan Keluarga ↔ Lansia',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                        Text(
+                          lansia == null ? 'Belum terhubung' : 'Terhubung aktif',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: lansia == null
+                                ? AppColors.muted
+                                : AppColors.success,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              if (lansia == null) ...[
+                const Text(
+                  'Hubungkan akun keluarga dengan akun Lansia menggunakan email akun Lansia.',
+                  style: TextStyle(color: AppColors.muted),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => _bukaPairing(deviceProvider),
+                    icon: const Icon(Icons.link),
+                    label: const Text('Hubungkan Lansia'),
+                  ),
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppColors.surfaceStrong,
+                      child: Text(
+                        lansia.nama.isEmpty
+                            ? 'L'
+                            : lansia.nama.substring(0, 1).toUpperCase(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            lansia.nama,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            lansia.email,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppColors.muted,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Aktif',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _isManagingRelation
+                            ? null
+                            : () => _bukaPairing(deviceProvider),
+                        icon: const Icon(Icons.swap_horiz),
+                        label: const Text('Ganti Lansia'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                        ),
+                        onPressed: _isManagingRelation
+                            ? null
+                            : () => _putuskanHubungan(
+                                  deviceProvider,
+                                  lansia,
+                                ),
+                        icon: const Icon(Icons.link_off),
+                        label: const Text('Putuskan'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -121,30 +419,12 @@ class _SettingScreenState extends State<SettingScreen> {
     final theme = Theme.of(context);
     final user = AuthService().currentUser;
     final email = user?.email ?? '-';
+    final deviceProvider = context.watch<DeviceProvider>();
 
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        // ── Info Akun ──────────────────────────────────────────────
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.canvas,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.hairline, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 2,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(24),
+        _cardContainer(
           child: Row(
             children: [
               Container(
@@ -154,7 +434,11 @@ class _SettingScreenState extends State<SettingScreen> {
                   color: AppColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.person_outline, size: 28, color: AppColors.primary),
+                child: const Icon(
+                  Icons.person_outline,
+                  size: 28,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -165,7 +449,6 @@ class _SettingScreenState extends State<SettingScreen> {
                       'Akun Anda',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: AppColors.muted,
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -178,34 +461,26 @@ class _SettingScreenState extends State<SettingScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
+                    Text(
+                      deviceProvider.isKeluarga ? 'Keluarga' : 'Lansia',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
         ),
+        if (deviceProvider.isKeluarga) ...[
+          const SizedBox(height: 16),
+          _buildRelationCard(context, deviceProvider),
+        ],
         const SizedBox(height: 16),
-
-        // ── Notifikasi WhatsApp ───────────────────────────────────
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.canvas,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.hairline, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 2,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(20),
+        _cardContainer(
           child: _isLoading
               ? const Center(
                   child: Padding(
@@ -227,7 +502,11 @@ class _SettingScreenState extends State<SettingScreen> {
                               color: AppColors.success.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(Icons.chat_bubble_outline, color: AppColors.success, size: 20),
+                            child: const Icon(
+                              Icons.chat_bubble_outline,
+                              color: AppColors.success,
+                              size: 20,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Text(
@@ -241,219 +520,131 @@ class _SettingScreenState extends State<SettingScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Dikirim otomatis setiap obat diambil atau gagal diverifikasi.',
-                        style: theme.textTheme.bodySmall?.copyWith(color: AppColors.muted),
+                        'Atur nomor penerima notifikasi dari dispenser.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.muted,
+                        ),
                       ),
                       const SizedBox(height: 20),
-
-                        TextFormField(
-                          controller: _noHpKeluargaController,
-                          keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(
-                            labelText: 'No. HP Keluarga',
-                            prefixIcon: Icon(Icons.family_restroom_outlined),
+                      TextFormField(
+                        controller: _noHpKeluargaController,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(
+                          labelText: 'No. HP Keluarga',
+                          prefixIcon: Icon(Icons.family_restroom_outlined),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'No. HP Keluarga wajib diisi';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _noHpLansiaController,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(
+                          labelText: 'No. HP Lansia (opsional)',
+                          prefixIcon: Icon(Icons.phone_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Kirim notifikasi ke',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(
+                            value: 'keluarga',
+                            label: Text('Keluarga'),
+                            icon: Icon(Icons.family_restroom_outlined),
                           ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'No. HP Keluarga wajib diisi';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 12),
-
-                        TextFormField(
-                          controller: _noHpLansiaController,
-                          keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(
-                            labelText: 'No. HP Lansia (opsional)',
-                            prefixIcon: Icon(Icons.phone_outlined),
-                            helperText: 'Isi kalau lansia punya HP sendiri',
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        Text(
-                          'Kirim notifikasi ke',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.ink,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-
-                        SegmentedButton<String>(
-                          segments: const [
-                            ButtonSegment(
-                              value: 'keluarga',
-                              label: Text('Keluarga'),
-                              icon: Icon(Icons.family_restroom_outlined),
-                            ),
-                            ButtonSegment(
-                              value: 'lansia',
-                              label: Text('Lansia'),
-                              icon: Icon(Icons.person_outline),
-                            ),
-                          ],
-                          selected: {_target},
-                          onSelectionChanged: (selected) {
-                            setState(() => _target = selected.first);
-                          },
-                        ),
-
-                        if (_errorMessage != null) ...[
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.all(AppSpacing.md),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFEE2DC),
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
-                            ),
-                            child: Text(
-                              _errorMessage!,
-                              style: const TextStyle(color: AppColors.error, fontSize: 13),
-                            ),
+                          ButtonSegment(
+                            value: 'lansia',
+                            label: Text('Lansia'),
+                            icon: Icon(Icons.person_outline),
                           ),
                         ],
-
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: _isSaving ? null : _simpan,
-                            icon: _isSaving
-                                ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: AppColors.onPrimary,
-                                    ),
-                                  )
-                                : const Icon(Icons.save_outlined),
-                            label: const Text('Simpan Pengaturan'),
+                        selected: {_target},
+                        onSelectionChanged: (selected) {
+                          setState(() => _target = selected.first);
+                        },
+                      ),
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEE2DC),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
+                          child: Text(
+                            _errorMessage!,
+                            style: const TextStyle(
+                              color: AppColors.error,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ],
-                    ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _isSaving ? null : _simpan,
+                          icon: _isSaving
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.onPrimary,
+                                  ),
+                                )
+                              : const Icon(Icons.save_outlined),
+                          label: const Text('Simpan Pengaturan'),
+                        ),
+                      ),
+                    ],
                   ),
+                ),
         ),
         const SizedBox(height: 16),
-
-        // ── Informasi Aplikasi ────────────────────────────────────
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.canvas,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.hairline, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 2,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
+        _cardContainer(
           child: Column(
             children: [
               ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceSoft,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.info_outline, color: AppColors.muted, size: 20),
-                ),
-                title: Text(
-                  'Versi Aplikasi',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppColors.ink,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceSoft,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '1.0.0',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.ink,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.info_outline),
+                title: const Text('Versi Aplikasi'),
+                trailing: const Text('1.0.0'),
               ),
-              const Divider(height: 1, indent: 20, endIndent: 20),
+              const Divider(height: 1),
               ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceSoft,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.devices, color: AppColors.muted, size: 20),
-                ),
-                title: Text(
-                  'Nama Perangkat',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppColors.ink,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                trailing: Text(
-                  'Dispenser Obat Pintar',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.muted,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.devices),
+                title: const Text('Nama Perangkat'),
+                trailing: const Text('Dispenser Obat Pintar'),
               ),
             ],
           ),
         ),
         const SizedBox(height: 24),
-
-        // ── Tombol Logout ─────────────────────────────────────────
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.error.withValues(alpha: 0.15),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+        FilledButton.icon(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.error,
+            foregroundColor: AppColors.onPrimary,
+            padding: const EdgeInsets.symmetric(vertical: 16),
           ),
-          child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: AppColors.onPrimary,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            icon: const Icon(Icons.logout, size: 20),
-            label: const Text(
-              'Keluar dari Akun',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            onPressed: () => _showLogoutDialog(context),
-          ),
+          icon: const Icon(Icons.logout),
+          label: const Text('Keluar dari Akun'),
+          onPressed: () => _showLogoutDialog(context),
         ),
       ],
     );
