@@ -54,12 +54,9 @@ class _MainShellState extends State<MainShell> {
 
   Future<void> _bukaNotifikasi(DeviceProvider deviceProvider) async {
     if (deviceProvider.lansiaId.isEmpty) return;
-
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => NotifikasiScreen(
-          lansiaId: deviceProvider.lansiaId,
-        ),
+        builder: (_) => NotifikasiScreen(lansiaId: deviceProvider.lansiaId),
       ),
     );
   }
@@ -69,11 +66,11 @@ class _MainShellState extends State<MainShell> {
     final deviceProvider = context.watch<DeviceProvider>();
 
     if (deviceProvider.isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    // Hanya error Auth/Supabase inti yang memblokir aplikasi.
+    // Kegagalan MQTT/ESP32 tidak masuk ke errorMessage.
     if (deviceProvider.errorMessage != null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Remindora')),
@@ -85,10 +82,7 @@ class _MainShellState extends State<MainShell> {
               children: [
                 const Icon(Icons.error_outline, size: 52),
                 const SizedBox(height: 16),
-                Text(
-                  deviceProvider.errorMessage!,
-                  textAlign: TextAlign.center,
-                ),
+                Text(deviceProvider.errorMessage!, textAlign: TextAlign.center),
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: () => deviceProvider.init(),
@@ -127,10 +121,7 @@ class _MainShellState extends State<MainShell> {
                   const Text(
                     'Akun belum terhubung dengan Lansia',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
                   const Text(
@@ -157,28 +148,22 @@ class _MainShellState extends State<MainShell> {
       );
     }
 
-    final mqttService = deviceProvider.mqttService;
-    if (!deviceProvider.sudahTerhubungDenganLansia || mqttService == null) {
+    if (!deviceProvider.sudahTerhubungDenganLansia) {
       return Scaffold(
         appBar: AppBar(title: const Text('Remindora')),
         body: const Center(
-          child: Text('Koneksi dispenser belum tersedia.'),
+          child: Text('Data Lansia belum tersedia untuk akun ini.'),
         ),
       );
     }
 
-    final List<Widget> pages = [
+    // Semua halaman berikut hanya membutuhkan lansiaId/Supabase.
+    // MQTT boleh null/offline.
+    final pages = <Widget>[
       const DashboardScreen(),
-      KelolaJadwalScreen(
-        lansiaId: deviceProvider.lansiaId,
-        mqttService: mqttService,
-      ),
-      MonitoringScreen(
-        lansiaId: deviceProvider.lansiaId,
-      ),
-      SettingScreen(
-        lansiaId: deviceProvider.lansiaId,
-      ),
+      KelolaJadwalScreen(lansiaId: deviceProvider.lansiaId),
+      MonitoringScreen(lansiaId: deviceProvider.lansiaId),
+      SettingScreen(lansiaId: deviceProvider.lansiaId),
     ];
 
     return Scaffold(
@@ -186,6 +171,14 @@ class _MainShellState extends State<MainShell> {
         title: Text(_titles[_selectedIndex]),
         centerTitle: false,
         actions: [
+          if (!deviceProvider.isMqttConnected)
+            const Padding(
+              padding: EdgeInsets.only(right: 4),
+              child: Tooltip(
+                message: 'Dispenser offline — data Supabase tetap tersedia',
+                child: Icon(Icons.cloud_off_outlined, size: 20),
+              ),
+            ),
           IconButton(
             tooltip: 'Notifikasi',
             onPressed: () => _bukaNotifikasi(deviceProvider),
@@ -193,14 +186,10 @@ class _MainShellState extends State<MainShell> {
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: pages,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) =>
-            setState(() => _selectedIndex = index),
+        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
         destinations: _navItems
             .map(
               (item) => NavigationDestination(
