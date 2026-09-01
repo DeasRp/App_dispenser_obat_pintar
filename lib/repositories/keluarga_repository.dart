@@ -1,12 +1,28 @@
 import '../core/services/supabase_service.dart';
 
+class LansiaTerhubungModel {
+  final String lansiaId;
+  final String nama;
+  final String email;
+
+  const LansiaTerhubungModel({
+    required this.lansiaId,
+    required this.nama,
+    required this.email,
+  });
+
+  factory LansiaTerhubungModel.fromJson(Map<String, dynamic> json) {
+    return LansiaTerhubungModel(
+      lansiaId: json['lansia_id'] as String,
+      nama: json['nama'] as String? ?? 'Lansia',
+      email: json['email'] as String? ?? '-',
+    );
+  }
+}
+
 class KeluargaRepository {
   final _client = SupabaseService.client;
 
-  /// Menghubungkan akun keluarga yang sedang login dengan akun Lansia
-  /// berdasarkan email. Pencarian email dilakukan di sisi database melalui
-  /// RPC SECURITY DEFINER sehingga Flutter tidak perlu dan tidak boleh
-  /// membaca auth.users secara langsung.
   Future<String> hubungkanDenganEmailLansia(String email) async {
     final normalizedEmail = email.trim().toLowerCase();
     if (normalizedEmail.isEmpty) {
@@ -23,5 +39,25 @@ class KeluargaRepository {
     }
 
     return response.toString();
+  }
+
+  Future<LansiaTerhubungModel?> getLansiaTerhubung() async {
+    final response = await _client.rpc('get_lansia_terhubung');
+
+    if (response is! List || response.isEmpty) return null;
+    return LansiaTerhubungModel.fromJson(
+      Map<String, dynamic>.from(response.first as Map),
+    );
+  }
+
+  Future<void> putuskanHubungan(String lansiaId) async {
+    final response = await _client.rpc(
+      'putuskan_hubungan_lansia',
+      params: {'p_lansia_id': lansiaId},
+    );
+
+    if (response != true) {
+      throw Exception('Hubungan dengan Lansia tidak ditemukan.');
+    }
   }
 }
