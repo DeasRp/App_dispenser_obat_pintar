@@ -36,34 +36,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _showDispenseConfirmationDialog(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Konfirmasi'),
-          content: const Text(
-            'Apakah Anda yakin ingin mengeluarkan obat secara manual?',
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Konfirmasi'),
+        content: const Text(
+          'Apakah Anda yakin ingin mengeluarkan obat secara manual?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Batal'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Batal'),
-            ),
-            FilledButton(
-              onPressed: () {
-                context.read<DeviceProvider>().publishDispenseCommand();
-                Navigator.of(dialogContext).pop();
+          FilledButton(
+            onPressed: () {
+              final terkirim =
+                  context.read<DeviceProvider>().publishDispenseCommand();
+              Navigator.of(dialogContext).pop();
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Perintah mengeluarkan obat dikirim.'),
-                    duration: Duration(seconds: 2),
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    terkirim
+                        ? 'Perintah mengeluarkan obat dikirim.'
+                        : 'Dispenser sedang offline. Perintah tidak dikirim.',
                   ),
-                );
-              },
-              child: const Text('Keluarkan'),
-            ),
-          ],
-        );
-      },
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('Keluarkan'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -89,14 +92,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       namaLansia: deviceProvider.status.namaLansia,
                     ),
                     const SizedBox(height: 8),
-
                     ConnectionStatusBanner(
                       isLoading: deviceProvider.isLoading,
                       isOnline: deviceProvider.status.isDeviceOnline,
                       statusText: deviceProvider.status.wifiStatusText,
                     ),
+                    if (!deviceProvider.isMqttConnected) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Dispenser offline. Jadwal, riwayat, monitoring, notifikasi, dan pengaturan tetap dapat digunakan dari Supabase.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
                     const SizedBox(height: 12),
-
                     NextScheduleCard(
                       isLoading: deviceProvider.isLoading,
                       nextScheduleTime: deviceProvider.status.nextScheduleTime,
@@ -105,13 +113,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           deviceProvider.status.nextScheduleJumlah,
                     ),
                     const SizedBox(height: 12),
-
                     StockStatusCard(
                       isLoading: deviceProvider.isLoading,
                       stockPercentage: deviceProvider.status.stokObatPercent,
                     ),
                     const SizedBox(height: 12),
-
                     FutureBuilder<RiwayatKonsumsiModel?>(
                       future: _riwayatTerakhirFuture,
                       builder: (context, snapshot) {
@@ -126,9 +132,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-
                     FilledButton.icon(
-                      onPressed: deviceProvider.isMqttConnected
+                      onPressed: deviceProvider.canDispenseManual
                           ? () => _showDispenseConfirmationDialog(context)
                           : null,
                       icon: const Icon(Icons.medication_outlined),
@@ -137,6 +142,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
                     ),
+                    if (!deviceProvider.canDispenseManual) ...[
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Dispense manual hanya tersedia saat dispenser terhubung.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
                   ],
                 ),
               ),
