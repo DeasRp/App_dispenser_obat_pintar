@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/services/auth_service.dart';
+import '../core/services/csv_export_service.dart';
 import '../providers/device_provider.dart';
 import 'dashboard_screen.dart';
 import 'hubungkan_lansia_screen.dart';
@@ -19,6 +20,8 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
+  bool _isExportingCsv = false;
+  final _csvExportService = CsvExportService();
 
   static const List<_NavItem> _navItems = [
     _NavItem(label: 'Home', icon: Icons.home_outlined, activeIcon: Icons.home),
@@ -59,6 +62,36 @@ class _MainShellState extends State<MainShell> {
         builder: (_) => NotifikasiScreen(lansiaId: deviceProvider.lansiaId),
       ),
     );
+  }
+
+  Future<void> _eksporCsv(DeviceProvider deviceProvider, int hari) async {
+    if (_isExportingCsv || deviceProvider.lansiaId.isEmpty) return;
+
+    setState(() => _isExportingCsv = true);
+
+    try {
+      final jumlah = await _csvExportService.exportRiwayatKonsumsi(
+        lansiaId: deviceProvider.lansiaId,
+        hari: hari,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$jumlah data riwayat berhasil disiapkan dalam format CSV.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final pesan = e.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengekspor CSV: $pesan')),
+      );
+    } finally {
+      if (mounted) setState(() => _isExportingCsv = false);
+    }
   }
 
   @override
@@ -166,6 +199,9 @@ class _MainShellState extends State<MainShell> {
       SettingScreen(lansiaId: deviceProvider.lansiaId),
     ];
 
+    final tampilkanEksporCsv =
+        deviceProvider.isKeluarga && _selectedIndex == 2;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
@@ -179,6 +215,41 @@ class _MainShellState extends State<MainShell> {
                 child: Icon(Icons.cloud_off_outlined, size: 20),
               ),
             ),
+          if (tampilkanEksporCsv)
+            _isExportingCsv
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14),
+                    child: Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  )
+                : PopupMenuButton<int>(
+                    tooltip: 'Ekspor riwayat CSV',
+                    icon: const Icon(Icons.download_outlined),
+                    onSelected: (hari) => _eksporCsv(deviceProvider, hari),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: 7,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.table_view_outlined),
+                          title: Text('Ekspor CSV 7 hari'),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 30,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.table_view_outlined),
+                          title: Text('Ekspor CSV 30 hari'),
+                        ),
+                      ),
+                    ],
+                  ),
           IconButton(
             tooltip: 'Notifikasi',
             onPressed: () => _bukaNotifikasi(deviceProvider),
