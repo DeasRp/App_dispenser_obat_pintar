@@ -41,6 +41,7 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
   void _beriStatusSinkronisasi() {
     final tersinkron = context.read<DeviceProvider>().publishScheduleSync();
     if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -68,24 +69,32 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
   }
 
   Future<void> _bukaDialogJadwal({JadwalObatModel? jadwalLama}) async {
-    final obatController = TextEditingController(text: jadwalLama?.namaObat ?? '');
+    final obatController = TextEditingController(
+      text: jadwalLama?.namaObat ?? '',
+    );
     final jumlahController = TextEditingController(
       text: (jadwalLama?.jumlahAngka ?? 1).toString(),
     );
+
     String satuanTerpilih = jadwalLama?.satuan ?? 'tablet';
-    if (!pilihanSatuan.contains(satuanTerpilih)) satuanTerpilih = 'tablet';
+    if (!pilihanSatuan.contains(satuanTerpilih)) {
+      satuanTerpilih = 'tablet';
+    }
 
     int urutanTerpilih = jadwalLama?.urutanKompartemen ?? 0;
     if (urutanTerpilih < 0 || urutanTerpilih >= jumlahKompartemen) {
       urutanTerpilih = 0;
     }
+
     TimeOfDay jamTerpilih = _parseJamAwal(jadwalLama?.jam);
 
     final simpan = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
-          title: Text(jadwalLama == null ? 'Tambah Jadwal' : 'Edit Jadwal'),
+          title: Text(
+            jadwalLama == null ? 'Tambah Jadwal Obat' : 'Edit Jadwal Obat',
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -108,7 +117,11 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: obatController,
-                  decoration: const InputDecoration(labelText: 'Nama Obat'),
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama Obat',
+                    prefixIcon: Icon(Icons.medication_outlined),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -117,14 +130,22 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     labelText: 'Jumlah Obat dalam Kompartemen',
+                    prefixIcon: Icon(Icons.numbers),
                   ),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: satuanTerpilih,
-                  decoration: const InputDecoration(labelText: 'Jenis / Satuan'),
+                  decoration: const InputDecoration(
+                    labelText: 'Jenis / Satuan',
+                  ),
                   items: pilihanSatuan
-                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .map(
+                        (satuan) => DropdownMenuItem(
+                          value: satuan,
+                          child: Text(satuan),
+                        ),
+                      )
                       .toList(),
                   onChanged: (value) {
                     if (value != null) {
@@ -135,7 +156,9 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<int>(
                   value: urutanTerpilih,
-                  decoration: const InputDecoration(labelText: 'Kompartemen Carousel'),
+                  decoration: const InputDecoration(
+                    labelText: 'Kompartemen Carousel',
+                  ),
                   items: List.generate(
                     jumlahKompartemen,
                     (i) => DropdownMenuItem(
@@ -157,9 +180,10 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
               onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Batal'),
             ),
-            FilledButton(
+            FilledButton.icon(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Simpan'),
+              icon: const Icon(Icons.save_outlined, size: 18),
+              label: const Text('Simpan'),
             ),
           ],
         ),
@@ -169,10 +193,14 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
     if (simpan != true) return;
 
     final jumlahAngka = int.tryParse(jumlahController.text.trim());
-    if (obatController.text.trim().isEmpty || jumlahAngka == null || jumlahAngka <= 0) {
+    if (obatController.text.trim().isEmpty ||
+        jumlahAngka == null ||
+        jumlahAngka <= 0) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nama obat dan jumlah yang valid wajib diisi.')),
+        const SnackBar(
+          content: Text('Nama obat dan jumlah yang valid wajib diisi.'),
+        ),
       );
       return;
     }
@@ -193,12 +221,15 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
       } else {
         await _repo.updateJadwal(jadwalLama.id!, jadwalBaru);
       }
+
       _muatUlang();
       _beriStatusSinkronisasi();
     } catch (e) {
       if (!mounted) return;
+
       final duplicate = e.toString().contains('duplicate') ||
           e.toString().contains('uq_kompartemen_aktif_per_lansia');
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -216,7 +247,9 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Hapus Jadwal?'),
-        content: Text('Jadwal ${jadwal.namaObat} pukul ${jadwal.jam} akan dinonaktifkan.'),
+        content: Text(
+          'Jadwal ${jadwal.namaObat} pukul ${jadwal.jam} akan dinonaktifkan.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -229,6 +262,7 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
         ],
       ),
     );
+
     if (konfirmasi != true) return;
 
     await _repo.nonaktifkanJadwal(jadwal.id!);
@@ -240,89 +274,148 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
   Widget build(BuildContext context) {
     final online = context.watch<DeviceProvider>().isMqttConnected;
 
-    return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _bukaDialogJadwal(),
-        icon: const Icon(Icons.add),
-        label: const Text('Tambah Jadwal'),
-      ),
-      body: Column(
-        children: [
-          if (!online)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: AppColors.warning.withValues(alpha: 0.12),
-              child: const Row(
-                children: [
-                  Icon(Icons.cloud_done_outlined, size: 18),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Dispenser offline. Jadwal tetap disimpan ke Supabase dan akan disinkronkan saat perangkat online.',
-                      style: TextStyle(fontSize: 12),
-                    ),
+    return Column(
+      children: [
+        if (!online)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: AppColors.warning.withValues(alpha: 0.12),
+            child: const Row(
+              children: [
+                Icon(Icons.cloud_off_outlined, size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Dispenser offline. Jadwal tetap disimpan ke Supabase dan akan disinkronkan saat perangkat online.',
+                    style: TextStyle(fontSize: 12),
                   ),
-                ],
-              ),
-            ),
-          Expanded(
-            child: FutureBuilder<List<JadwalObatModel>>(
-              future: _jadwalFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('Gagal memuat jadwal: ${snapshot.error}'));
-                }
-
-                final daftar = snapshot.data ?? [];
-                if (daftar.isEmpty) {
-                  return const Center(child: Text('Belum ada jadwal obat.'));
-                }
-
-                return RefreshIndicator(
-                  onRefresh: () async => _muatUlang(),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-                    itemCount: daftar.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final jadwal = daftar[index];
-                      return Card(
-                        elevation: 0,
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            child: Text('#${jadwal.urutanKompartemen}'),
-                          ),
-                          title: Text(jadwal.namaObat),
-                          subtitle: Text('${jadwal.jam} • ${jadwal.jumlahLabel}'),
-                          trailing: Wrap(
-                            spacing: 2,
-                            children: [
-                              IconButton(
-                                tooltip: 'Edit',
-                                onPressed: () => _bukaDialogJadwal(jadwalLama: jadwal),
-                                icon: const Icon(Icons.edit_outlined),
-                              ),
-                              IconButton(
-                                tooltip: 'Hapus',
-                                onPressed: () => _hapusJadwal(jadwal),
-                                icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        Expanded(
+          child: FutureBuilder<List<JadwalObatModel>>(
+            future: _jadwalFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Gagal memuat jadwal: ${snapshot.error}',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              }
+
+              final daftar = snapshot.data ?? [];
+              if (daftar.isEmpty) {
+                return RefreshIndicator(
+                  onRefresh: () async => _muatUlang(),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      SizedBox(height: 160),
+                      Icon(Icons.event_note_outlined, size: 56),
+                      SizedBox(height: 14),
+                      Center(
+                        child: Text(
+                          'Belum ada jadwal obat',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 6),
+                      Center(
+                        child: Text('Tambahkan jadwal pertama untuk dispenser.'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return RefreshIndicator(
+                onRefresh: () async => _muatUlang(),
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  itemCount: daftar.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final jadwal = daftar[index];
+
+                    return Card(
+                      elevation: 0,
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        leading: CircleAvatar(
+                          child: Text('#${jadwal.urutanKompartemen}'),
+                        ),
+                        title: Text(
+                          jadwal.namaObat,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          '${jadwal.jam} • ${jadwal.jumlahLabel}',
+                        ),
+                        trailing: Wrap(
+                          spacing: 2,
+                          children: [
+                            IconButton(
+                              tooltip: 'Edit',
+                              onPressed: () => _bukaDialogJadwal(
+                                jadwalLama: jadwal,
+                              ),
+                              icon: const Icon(Icons.edit_outlined),
+                            ),
+                            IconButton(
+                              tooltip: 'Hapus',
+                              onPressed: () => _hapusJadwal(jadwal),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: AppColors.error,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+        SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton.icon(
+              onPressed: () => _bukaDialogJadwal(),
+              icon: const Icon(Icons.add),
+              label: const Text(
+                'Tambah Jadwal',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
