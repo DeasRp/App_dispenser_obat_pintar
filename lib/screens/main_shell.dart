@@ -62,6 +62,52 @@ class _MainShellState extends State<MainShell> {
         builder: (_) => NotifikasiScreen(lansiaId: deviceProvider.lansiaId),
       ),
     );
+
+    // Sinkronkan badge setelah pengguna membaca notifikasi.
+    await deviceProvider.refreshUnreadNotifications();
+  }
+
+  Widget _buildNotificationBell(DeviceProvider deviceProvider) {
+    final count = deviceProvider.unreadNotificationCount;
+    final label = count > 99 ? '99+' : '$count';
+
+    return IconButton(
+      tooltip: count > 0 ? '$count notifikasi belum dibaca' : 'Notifikasi',
+      onPressed: () => _bukaNotifikasi(deviceProvider),
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(Icons.notifications_outlined),
+          if (count > 0)
+            Positioned(
+              right: -8,
+              top: -7,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.error,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.surface,
+                    width: 1.5,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onError,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    height: 1,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Future<void> _eksporCsv(DeviceProvider deviceProvider, int hari) async {
@@ -250,11 +296,7 @@ class _MainShellState extends State<MainShell> {
                       ),
                     ],
                   ),
-          IconButton(
-            tooltip: 'Notifikasi',
-            onPressed: () => _bukaNotifikasi(deviceProvider),
-            icon: const Icon(Icons.notifications_outlined),
-          ),
+          _buildNotificationBell(deviceProvider),
         ],
       ),
       body: IndexedStack(index: _selectedIndex, children: pages),
