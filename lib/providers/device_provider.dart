@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -27,6 +28,10 @@ class DeviceProvider with ChangeNotifier {
   bool isLoading = false;
   bool isMqttConnected = false;
   String? errorMessage;
+
+  int unreadNotificationCount = 0;
+  bool _mqttInitialSetupComplete = false;
+  bool _reconnectSyncRunning = false;
 
   bool get canDispenseManual =>
       sudahTerhubungDenganLansia && isMqttConnected && _mqttService != null;
@@ -170,12 +175,37 @@ class DeviceProvider with ChangeNotifier {
     }
   }
 
+  Future<void> refreshUnreadNotifications({bool notify = true}) async {
+    if (!sudahTerhubungDenganLansia) {
+      unreadNotificationCount = 0;
+      if (notify) notifyListeners();
+      return;
+    }
+
+    try {
+      final response = await SupabaseService.client
+          .from('notifikasi')
+          .select('id')
+          .eq('lansia_id', _lansiaId!)
+          .eq('dibaca', false);
+
+      unreadNotificationCount = (response as List).length;
+    } catch (e) {
+      debugPrint('Gagal memuat jumlah notifikasi belum dibaca: $e');
+    }
+
+    if (notify) notifyListeners();
+  }
+
   Future<void> init() async {
     status = DeviceStatus.initial();
     isMqttConnected = false;
+    unreadNotificationCount = 0;
     errorMessage = null;
     _profile = null;
     _lansiaId = null;
+    _mqttInitialSetupComplete = false;
+    _reconnectSyncRunning = false;
 
     _mqttService?.disconnect();
     _mqttService = null;
@@ -193,6 +223,7 @@ class DeviceProvider with ChangeNotifier {
       // Muat data non-realtime terlebih dahulu. Jadi dashboard, jadwal,
       // monitoring, notifikasi, dan setting tetap berguna saat ESP32 offline.
       await _muatStatusDariSupabase();
+      await refreshUnreadNotifications(notify: false);
 
       // MQTT bersifat opsional. Gagal terhubung ke broker/ESP32 tidak boleh
       // membuat seluruh aplikasi masuk ke halaman error.
@@ -216,6 +247,51 @@ class DeviceProvider with ChangeNotifier {
     }
   }
 
+  void _subscribeSemuaTopic(MqttService mqtt) {
+    mqtt.subscribe(MqttConfig.topicMedicineStatus);
+    mqtt.subscribe(MqttConfig.topicMedicineStock);
+    mqtt.subscribe(MqttConfig.topicMedicineGlass);
+    mqtt.subscribe(MqttConfig.topicMedicineSchedule);
+    mqtt.subscribe(MqttConfig.topicMedicineHistory);
+    mqtt.subscribe(MqttConfig.topicMedicineNotify);
+  }
+
+  Future<void> _sinkronkanSetelahReconnect() async {
+    if (_reconnectSyncRunning ||
+        !isMqttConnected ||
+        _mqttService == null ||
+        !sudahTerhubungDenganLansia) {
+      return;
+    }
+
+    _reconnectSyncRunning = true;
+    try {
+      final mqtt = _mqttService!;
+
+      // Session MQTT menggunakan clean session, sehingga subscription perlu
+      // dipastikan kembali setelah auto-reconnect.
+      _subscribeSemuaTopic(mqtt);
+
+      // Provision ulang identitas Lansia lalu minta ESP32 mengambil jadwal
+      // terbaru dari Supabase. Ini menutup gap jadwal yang dibuat saat offline.
+      mqtt.publish(MqttConfig.topicCmdSetLansia, _lansiaId!);
+      await Future.delayed(const Duration(milliseconds: 350));
+      mqtt.publish(MqttConfig.topicCmdSyncJadwal, '1');
+      await Future.delayed(const Duration(milliseconds: 350));
+      mqtt.publish(MqttConfig.topicCmdRefresh, '1');
+
+      await _muatStatusDariSupabase();
+      await refreshUnreadNotifications(notify: false);
+
+      debugPrint('MQTT reconnect: LANSIA_ID, jadwal, dan status disinkronkan ulang.');
+    } catch (e) {
+      debugPrint('Gagal auto-sync setelah MQTT reconnect: $e');
+    } finally {
+      _reconnectSyncRunning = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> _hubungkanMqtt() async {
     final mqtt = MqttService(
       broker: MqttConfig.broker,
@@ -230,13 +306,20 @@ class DeviceProvider with ChangeNotifier {
     final connected = await mqtt.connect(
       _handleMessage,
       onConnectionChanged: (isConnected) {
+        final sebelumnyaTerhubung = isMqttConnected;
         isMqttConnected = isConnected;
+
         if (!isConnected) {
           status = status.copyWith(
             isDeviceOnline: false,
             wifiStatusText: 'Perangkat offline',
           );
+        } else if (_mqttInitialSetupComplete && !sebelumnyaTerhubung) {
+          // Callback ini juga dipanggil pada koneksi pertama. Auto-sync hanya
+          // dijalankan setelah initial setup selesai, sehingga tidak duplikat.
+          unawaited(_sinkronkanSetelahReconnect());
         }
+
         notifyListeners();
       },
     );
@@ -252,16 +335,11 @@ class DeviceProvider with ChangeNotifier {
 
     isMqttConnected = true;
 
-    mqtt.subscribe(MqttConfig.topicMedicineStatus);
-    mqtt.subscribe(MqttConfig.topicMedicineStock);
-    mqtt.subscribe(MqttConfig.topicMedicineGlass);
-    mqtt.subscribe(MqttConfig.topicMedicineSchedule);
-    mqtt.subscribe(MqttConfig.topicMedicineHistory);
-    mqtt.subscribe(MqttConfig.topicMedicineNotify);
-
+    _subscribeSemuaTopic(mqtt);
     mqtt.publish(MqttConfig.topicCmdSetLansia, _lansiaId!);
 
     await Future.delayed(const Duration(milliseconds: 500));
+    _mqttInitialSetupComplete = true;
     await refreshDeviceStatus();
   }
 
@@ -312,6 +390,12 @@ class DeviceProvider with ChangeNotifier {
           }
           break;
 
+        case MqttConfig.topicMedicineNotify:
+          // Firmware mengirim sinyal notifikasi realtime. Jumlah unread tetap
+          // dihitung dari Supabase agar badge konsisten dengan status `dibaca`.
+          unawaited(refreshUnreadNotifications());
+          return;
+
         default:
           break;
       }
@@ -344,6 +428,7 @@ class DeviceProvider with ChangeNotifier {
 
   @override
   void dispose() {
+    _mqttInitialSetupComplete = false;
     _mqttService?.disconnect();
     super.dispose();
   }
