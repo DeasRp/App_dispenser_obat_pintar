@@ -38,6 +38,8 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
     if (mounted) setState(() {});
   }
 
+  int _nomorKompartemen(int indeks) => indeks + 1;
+
   void _beriStatusSinkronisasi() {
     final tersinkron = context.read<DeviceProvider>().publishScheduleSync();
     if (!mounted) return;
@@ -163,7 +165,7 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
                     jumlahKompartemen,
                     (i) => DropdownMenuItem(
                       value: i,
-                      child: Text('Kompartemen #$i'),
+                      child: Text('Kompartemen #${_nomorKompartemen(i)}'),
                     ),
                   ),
                   onChanged: (value) {
@@ -234,7 +236,7 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
         SnackBar(
           content: Text(
             duplicate
-                ? 'Kompartemen #$urutanTerpilih sudah dipakai jadwal aktif lain.'
+                ? 'Kompartemen #${_nomorKompartemen(urutanTerpilih)} sudah dipakai jadwal aktif lain.'
                 : 'Gagal menyimpan jadwal: $e',
           ),
         ),
@@ -359,7 +361,9 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
                           vertical: 8,
                         ),
                         leading: CircleAvatar(
-                          child: Text('#${jadwal.urutanKompartemen}'),
+                          child: Text(
+                            '#${_nomorKompartemen(jadwal.urutanKompartemen)}',
+                          ),
                         ),
                         title: Text(
                           jadwal.namaObat,

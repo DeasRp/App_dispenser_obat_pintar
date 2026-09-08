@@ -8,7 +8,7 @@ import 'package:dispenser_obat_pintar/core/theme/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SupabaseService.init();
-  
+
   runApp(
     ChangeNotifierProvider(
       create: (context) => DeviceProvider()..init(),
@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Dispenser Obat Pintar',
+      title: 'ObatKu',
       theme: AppTheme.lightTheme,
       themeMode: ThemeMode.light,
       home: const AuthGate(),
