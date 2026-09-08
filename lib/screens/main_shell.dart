@@ -31,7 +31,7 @@ class _MainShellState extends State<MainShell> {
   ];
 
   static const List<String> _titles = [
-    'Dispenser Obat Pintar',
+    'ObatKu',
     'Kelola Jadwal',
     'Monitoring',
     'Pengaturan',
@@ -63,7 +63,6 @@ class _MainShellState extends State<MainShell> {
       ),
     );
 
-    // Sinkronkan badge setelah pengguna membaca notifikasi.
     await deviceProvider.refreshUnreadNotifications();
   }
 
@@ -148,11 +147,9 @@ class _MainShellState extends State<MainShell> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // Hanya error Auth/Supabase inti yang memblokir aplikasi.
-    // Kegagalan MQTT/ESP32 tidak masuk ke errorMessage.
     if (deviceProvider.errorMessage != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Remindora')),
+        appBar: AppBar(title: const Text('ObatKu')),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -178,7 +175,7 @@ class _MainShellState extends State<MainShell> {
         !deviceProvider.sudahTerhubungDenganLansia) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Remindora Keluarga'),
+          title: const Text('ObatKu Keluarga'),
           actions: [
             IconButton(
               tooltip: 'Keluar',
@@ -229,15 +226,13 @@ class _MainShellState extends State<MainShell> {
 
     if (!deviceProvider.sudahTerhubungDenganLansia) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Remindora')),
+        appBar: AppBar(title: const Text('ObatKu')),
         body: const Center(
           child: Text('Data Lansia belum tersedia untuk akun ini.'),
         ),
       );
     }
 
-    // Semua halaman berikut hanya membutuhkan lansiaId/Supabase.
-    // MQTT boleh null/offline.
     final pages = <Widget>[
       const DashboardScreen(),
       KelolaJadwalScreen(lansiaId: deviceProvider.lansiaId),
