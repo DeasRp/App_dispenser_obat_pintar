@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 
-/// Menampilkan info konsumsi obat terakhir (nama obat, waktu, status).
+/// Menampilkan info riwayat konsumsi obat terakhir.
 /// Data diambil sekali saat dashboard dibuka / refresh, dari
 /// riwayat_konsumsi (baris terbaru).
 class LastMedicineTakenCard extends StatelessWidget {
   final bool isLoading;
   final String? namaObatTerakhir;
   final DateTime? waktuTerakhir;
-  final String? statusTerakhir; // 'diambil' | 'gagal_verifikasi'
+  final String? statusTerakhir;
 
   const LastMedicineTakenCard({
     super.key,
@@ -26,10 +26,47 @@ class LastMedicineTakenCard extends StatelessWidget {
     return '${waktu.day}/${waktu.month}/${waktu.year} ${waktu.hour.toString().padLeft(2, '0')}:${waktu.minute.toString().padLeft(2, '0')}';
   }
 
+  String _judulStatus() {
+    switch (statusTerakhir) {
+      case 'diambil':
+        return 'Obat terakhir diambil';
+      case 'terlambat':
+        return 'Pengambilan terakhir terlambat';
+      case 'terlewat':
+        return 'Jadwal terakhir terlewat';
+      case 'gagal_verifikasi':
+        return 'Pengambilan terakhir gagal diverifikasi';
+      default:
+        return 'Riwayat konsumsi terakhir';
+    }
+  }
+
+  String _teksRiwayat() {
+    if (namaObatTerakhir == null || namaObatTerakhir!.isEmpty) {
+      return 'Belum ada riwayat';
+    }
+
+    if (waktuTerakhir == null) {
+      switch (statusTerakhir) {
+        case 'terlewat':
+          return '$namaObatTerakhir • Tidak diambil';
+        case 'terlambat':
+          return '$namaObatTerakhir • Belum diambil';
+        case 'gagal_verifikasi':
+          return '$namaObatTerakhir • Waktu pengambilan tidak tersedia';
+        default:
+          return namaObatTerakhir!;
+      }
+    }
+
+    return '$namaObatTerakhir • ${_formatWaktuRelatif(waktuTerakhir!)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final berhasil = statusTerakhir == 'diambil';
+    final terlewat = statusTerakhir == 'terlewat';
 
     return Card(
       margin: EdgeInsets.zero,
@@ -41,10 +78,22 @@ class LastMedicineTakenCard extends StatelessWidget {
             CircleAvatar(
               backgroundColor: isLoading
                   ? AppColors.surfaceStrong
-                  : (berhasil ? const Color(0xFFEAF7EE) : const Color(0xFFFFF7E6)),
+                  : berhasil
+                      ? const Color(0xFFEAF7EE)
+                      : terlewat
+                          ? const Color(0xFFFFEAEA)
+                          : const Color(0xFFFFF7E6),
               child: Icon(
-                berhasil ? Icons.check_circle_outline : Icons.history,
-                color: berhasil ? AppColors.success : AppColors.warning,
+                berhasil
+                    ? Icons.check_circle_outline
+                    : terlewat
+                        ? Icons.error_outline
+                        : Icons.history,
+                color: berhasil
+                    ? AppColors.success
+                    : terlewat
+                        ? AppColors.error
+                        : AppColors.warning,
                 size: 22,
               ),
             ),
@@ -54,7 +103,7 @@ class LastMedicineTakenCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Obat terakhir diambil',
+                    _judulStatus(),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: AppColors.muted,
                       fontWeight: FontWeight.w500,
@@ -67,16 +116,9 @@ class LastMedicineTakenCard extends StatelessWidget {
                       width: 14,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  else if (namaObatTerakhir == null)
-                    Text(
-                      'Belum ada riwayat',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: AppColors.ink,
-                      ),
-                    )
                   else
                     Text(
-                      '$namaObatTerakhir • ${_formatWaktuRelatif(waktuTerakhir!)}',
+                      _teksRiwayat(),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppColors.ink,
