@@ -27,6 +27,49 @@ class MonitoringRepository {
         .toList();
   }
 
+  /// Ringkasan status pengambilan obat untuk hari ini.
+  ///
+  /// Menggunakan `created_at` agar status `terlewat` yang memiliki
+  /// `waktu_diambil = NULL` tetap dihitung. Batas hari dibuat berdasarkan
+  /// waktu lokal perangkat kemudian dikonversi ke UTC untuk query timestamp.
+  Future<RingkasanHariIniModel> getRingkasanHariIni({
+    required String lansiaId,
+  }) async {
+    final sekarang = DateTime.now();
+    final awalHariLokal = DateTime(
+      sekarang.year,
+      sekarang.month,
+      sekarang.day,
+    );
+    final akhirHariLokal = awalHariLokal.add(const Duration(days: 1));
+
+    final response = await _client
+        .from('riwayat_konsumsi')
+        .select('status, created_at')
+        .eq('lansia_id', lansiaId)
+        .gte('created_at', awalHariLokal.toUtc().toIso8601String())
+        .lt('created_at', akhirHariLokal.toUtc().toIso8601String());
+
+    int diambil = 0;
+    int terlewat = 0;
+
+    for (final raw in response as List) {
+      final row = raw as Map<String, dynamic>;
+      final status = (row['status'] as String? ?? '').toLowerCase();
+
+      if (status == 'diambil') {
+        diambil++;
+      } else if (status == 'terlewat') {
+        terlewat++;
+      }
+    }
+
+    return RingkasanHariIniModel(
+      diambil: diambil,
+      terlewat: terlewat,
+    );
+  }
+
   /// Grafik jumlah obat yang benar-benar diambil per hari.
   ///
   /// Hanya status `diambil` yang masuk grafik. Untuk baris ini
