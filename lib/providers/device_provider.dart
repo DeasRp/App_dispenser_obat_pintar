@@ -33,8 +33,14 @@ class DeviceProvider with ChangeNotifier {
   bool _mqttInitialSetupComplete = false;
   bool _reconnectSyncRunning = false;
 
+  /// Dispense manual hanya tersedia untuk akun Lansia yang berada dekat
+  /// dengan dispenser. Akun Keluarga tetap dapat memantau dan mengelola
+  /// jadwal, tetapi tidak dapat mengeluarkan obat dari jarak jauh.
   bool get canDispenseManual =>
-      sudahTerhubungDenganLansia && isMqttConnected && _mqttService != null;
+      isLansia &&
+      sudahTerhubungDenganLansia &&
+      isMqttConnected &&
+      _mqttService != null;
 
   Future<void> _muatProfile() async {
     _profile = await AuthService().getCurrentProfile();
@@ -214,19 +220,14 @@ class DeviceProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Bagian ini wajib untuk aplikasi: Auth + Supabase.
       await _muatProfile();
       await _muatLansiaId();
 
       if (!sudahTerhubungDenganLansia) return;
 
-      // Muat data non-realtime terlebih dahulu. Jadi dashboard, jadwal,
-      // monitoring, notifikasi, dan setting tetap berguna saat ESP32 offline.
       await _muatStatusDariSupabase();
       await refreshUnreadNotifications(notify: false);
 
-      // MQTT bersifat opsional. Gagal terhubung ke broker/ESP32 tidak boleh
-      // membuat seluruh aplikasi masuk ke halaman error.
       try {
         await _hubungkanMqtt();
       } catch (e) {
@@ -238,7 +239,6 @@ class DeviceProvider with ChangeNotifier {
         debugPrint('MQTT tidak tersedia, aplikasi tetap berjalan: $e');
       }
     } catch (e) {
-      // Hanya kegagalan Auth/Supabase inti yang dianggap fatal.
       errorMessage = e.toString();
       debugPrint('DeviceProvider init gagal: $e');
     } finally {
@@ -267,13 +267,8 @@ class DeviceProvider with ChangeNotifier {
     _reconnectSyncRunning = true;
     try {
       final mqtt = _mqttService!;
-
-      // Session MQTT menggunakan clean session, sehingga subscription perlu
-      // dipastikan kembali setelah auto-reconnect.
       _subscribeSemuaTopic(mqtt);
 
-      // Provision ulang identitas Lansia lalu minta ESP32 mengambil jadwal
-      // terbaru dari Supabase. Ini menutup gap jadwal yang dibuat saat offline.
       mqtt.publish(MqttConfig.topicCmdSetLansia, _lansiaId!);
       await Future.delayed(const Duration(milliseconds: 350));
       mqtt.publish(MqttConfig.topicCmdSyncJadwal, '1');
@@ -315,8 +310,6 @@ class DeviceProvider with ChangeNotifier {
             wifiStatusText: 'Perangkat offline',
           );
         } else if (_mqttInitialSetupComplete && !sebelumnyaTerhubung) {
-          // Callback ini juga dipanggil pada koneksi pertama. Auto-sync hanya
-          // dijalankan setelah initial setup selesai, sehingga tidak duplikat.
           unawaited(_sinkronkanSetelahReconnect());
         }
 
@@ -391,8 +384,6 @@ class DeviceProvider with ChangeNotifier {
           break;
 
         case MqttConfig.topicMedicineNotify:
-          // Firmware mengirim sinyal notifikasi realtime. Jumlah unread tetap
-          // dihitung dari Supabase agar badge konsisten dengan status `dibaca`.
           unawaited(refreshUnreadNotifications());
           return;
 
