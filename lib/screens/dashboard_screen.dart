@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/jadwal_obat_model.dart';
+import '../models/monitoring_model.dart';
 import '../providers/device_provider.dart';
 import '../repositories/jadwal_repository.dart';
+import '../repositories/monitoring_repository.dart';
 import '../widgets/connection_status_banner.dart';
 import '../widgets/dashboard_header.dart';
 import '../widgets/last_medicine_taken_card.dart';
 import '../widgets/next_schedule_card.dart';
 import '../widgets/stock_status_card.dart';
+import '../widgets/today_intake_summary_card.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -19,18 +22,24 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final _jadwalRepo = JadwalRepository();
-  Future<RiwayatKonsumsiModel?>? _riwayatTerakhirFuture;
+  final _monitoringRepo = MonitoringRepository();
 
-  void _muatRiwayatTerakhir(String lansiaId) {
+  Future<RiwayatKonsumsiModel?>? _riwayatTerakhirFuture;
+  Future<RingkasanHariIniModel>? _ringkasanHariIniFuture;
+
+  void _muatDataDashboard(String lansiaId) {
     if (lansiaId.isEmpty) return;
     setState(() {
       _riwayatTerakhirFuture = _jadwalRepo.getRiwayatTerakhir(lansiaId);
+      _ringkasanHariIniFuture = _monitoringRepo.getRingkasanHariIni(
+        lansiaId: lansiaId,
+      );
     });
   }
 
   Future<void> _refreshSemua(DeviceProvider deviceProvider) async {
     await deviceProvider.refreshDeviceStatus();
-    _muatRiwayatTerakhir(deviceProvider.lansiaId);
+    _muatDataDashboard(deviceProvider.lansiaId);
   }
 
   void _showDispenseConfirmationDialog(BuildContext context) {
@@ -74,9 +83,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Consumer<DeviceProvider>(
       builder: (context, deviceProvider, child) {
-        _riwayatTerakhirFuture ??= deviceProvider.lansiaId.isNotEmpty
-            ? _jadwalRepo.getRiwayatTerakhir(deviceProvider.lansiaId)
-            : null;
+        if (deviceProvider.lansiaId.isNotEmpty) {
+          _riwayatTerakhirFuture ??=
+              _jadwalRepo.getRiwayatTerakhir(deviceProvider.lansiaId);
+          _ringkasanHariIniFuture ??= _monitoringRepo.getRingkasanHariIni(
+            lansiaId: deviceProvider.lansiaId,
+          );
+        }
 
         return Scaffold(
           body: SafeArea(
@@ -116,6 +129,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     StockStatusCard(
                       isLoading: deviceProvider.isLoading,
                       stockPercentage: deviceProvider.status.stokObatPercent,
+                    ),
+                    const SizedBox(height: 12),
+                    FutureBuilder<RingkasanHariIniModel>(
+                      future: _ringkasanHariIniFuture,
+                      builder: (context, snapshot) {
+                        return TodayIntakeSummaryCard(
+                          isLoading:
+                              snapshot.connectionState == ConnectionState.waiting,
+                          ringkasan: snapshot.data,
+                        );
+                      },
                     ),
                     const SizedBox(height: 12),
                     FutureBuilder<RiwayatKonsumsiModel?>(
