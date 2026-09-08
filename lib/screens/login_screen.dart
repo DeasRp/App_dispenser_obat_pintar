@@ -34,8 +34,6 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      // Navigasi otomatis ditangani oleh AuthGate lewat authStateChanges,
-      // tidak perlu Navigator.push manual di sini.
     } on AuthException catch (e) {
       setState(() => _errorMessage = _pesanErrorRamah(e.message));
     } catch (e) {
@@ -89,7 +87,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ── Logo ─────────────────────────────────────────
                   Center(
                     child: Container(
                       width: 96,
@@ -106,13 +103,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
-
-                  // ── Headline ────────────────────────────────────────────
                   Center(
                     child: Column(
                       children: [
                         Text(
-                          'Dispenser Obat Pintar',
+                          'ObatKu',
                           style: Theme.of(context).textTheme.displaySmall?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: AppColors.ink,
@@ -122,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
-                          'Masuk untuk mengelola jadwal obat',
+                          'Dispenser obat pintar untuk membantu pengelolaan jadwal obat',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppColors.muted,
                           ),
@@ -132,8 +127,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
-
-                  // ── Email Field ─────────────────────────────────────────
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -152,8 +145,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: AppSpacing.md),
-
-                  // ── Password Field ──────────────────────────────────────
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -178,8 +169,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
-
-                  // ── Lupa Password ───────────────────────────────────────
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
@@ -195,8 +184,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Text('Lupa password?'),
                     ),
                   ),
-
-                  // ── Error message ───────────────────────────────────────
                   if (_errorMessage != null) ...[
                     const SizedBox(height: AppSpacing.sm),
                     Container(
@@ -216,8 +203,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                   const SizedBox(height: AppSpacing.base),
-
-                  // ── CTA Button ──────────────────────────────────────────
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -246,8 +231,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-
-                  // ── Register Link ───────────────────────────────────────
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
