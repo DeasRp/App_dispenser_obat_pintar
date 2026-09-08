@@ -155,24 +155,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         );
                       },
                     ),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: deviceProvider.canDispenseManual
-                          ? () => _showDispenseConfirmationDialog(context)
-                          : null,
-                      icon: const Icon(Icons.medication_outlined),
-                      label: const Text('Keluarkan Obat Manual'),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 15),
+                    if (deviceProvider.isLansia) ...[
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: deviceProvider.canDispenseManual
+                            ? () => _showDispenseConfirmationDialog(context)
+                            : null,
+                        icon: const Icon(Icons.medication_outlined),
+                        label: const Text('Keluarkan Obat Manual'),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                        ),
                       ),
-                    ),
-                    if (!deviceProvider.canDispenseManual) ...[
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Dispense manual hanya tersedia saat dispenser terhubung.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
+                      if (!deviceProvider.canDispenseManual) ...[
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Dispense manual hanya tersedia saat dispenser terhubung.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
                     ],
                   ],
                 ),
