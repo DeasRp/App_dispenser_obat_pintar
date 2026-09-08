@@ -1,9 +1,12 @@
-
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+
 import '../core/theme/app_theme.dart';
 
-// Widget untuk menampilkan status koneksi device
+/// Indikator ringkas status koneksi dispenser.
+///
+/// Detail koneksi tetap diterima melalui [statusText] dan ditampilkan sebagai
+/// tooltip, sedangkan dashboard hanya menampilkan status Online / Offline.
 class ConnectionStatusBanner extends StatelessWidget {
   final bool isLoading;
   final bool isOnline;
@@ -18,60 +21,60 @@ class ConnectionStatusBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     if (isLoading) {
-      return Shimmer.fromColors(
-        baseColor: Colors.grey[300]!,
-        highlightColor: Colors.grey[100]!,
-        child: Card(
-          margin: const EdgeInsets.symmetric(vertical: 8.0),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
           child: Container(
-            height: 50,
-            width: double.infinity,
+            width: 92,
+            height: 32,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderRadius: BorderRadius.circular(20),
             ),
           ),
         ),
       );
     }
-    
-    final Color bannerColor = isOnline
-        ? const Color(0xFFEAF7EE) // Sangat lembut hijau
-        : const Color(0xFFFFF0F0); // Sangat lembut merah
-    final Color contentColor =
-        isOnline ? AppColors.success : AppColors.error;
-    final IconData icon = isOnline ? Icons.check_circle_outline : Icons.error_outline;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      color: bannerColor,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(color: contentColor.withValues(alpha: 0.12), width: 1),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        child: Row(
-          children: [
-            Icon(icon, color: contentColor, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                statusText,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: contentColor,
+    final color = isOnline ? AppColors.success : AppColors.error;
+    final backgroundColor = color.withValues(alpha: 0.10);
+    final label = isOnline ? 'Online' : 'Offline';
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Tooltip(
+        message: statusText,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
