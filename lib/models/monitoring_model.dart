@@ -38,4 +38,17 @@ class KepatuhanModel {
   double get persenKepatuhan => total == 0 ? 0 : (diambil / total) * 100;
 }
 
+/// Ringkasan status konsumsi obat untuk tanggal hari ini.
+class RingkasanHariIniModel {
+  final int diambil;
+  final int terlewat;
+
+  const RingkasanHariIniModel({
+    required this.diambil,
+    required this.terlewat,
+  });
+
+  int get total => diambil + terlewat;
+}
+
 enum RentangWaktu { mingguan, bulanan }
