@@ -615,27 +615,16 @@ class _SettingScreenState extends State<SettingScreen> {
                   ),
                 ),
         ),
-        const SizedBox(height: 16),
-        _cardContainer(
-          child: Column(
-            children: [
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.info_outline),
-                title: const Text('Versi Aplikasi'),
-                trailing: const Text('1.0.0'),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.devices),
-                title: const Text('Nama Perangkat'),
-                trailing: const Text('Dispenser Obat Pintar'),
-              ),
-            ],
+        const SizedBox(height: 14),
+        Center(
+          child: Text(
+            'ObatKu • v1.0.0',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppColors.muted,
+            ),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
         FilledButton.icon(
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.error,
