@@ -23,6 +23,8 @@ class _SettingScreenState extends State<SettingScreen> {
   final _noHpKeluargaController = TextEditingController();
   final _noHpLansiaController = TextEditingController();
 
+  static const _targetTersedia = {'keluarga', 'lansia', 'keduanya'};
+
   String _target = 'keluarga';
   bool _isLoading = true;
   bool _isSaving = false;
@@ -46,7 +48,9 @@ class _SettingScreenState extends State<SettingScreen> {
       final kontak = await _repo.getKontak(widget.lansiaId);
       _noHpKeluargaController.text = kontak.noHpKeluarga;
       _noHpLansiaController.text = kontak.noHpLansia ?? '';
-      _target = kontak.notifikasiTarget;
+      _target = _targetTersedia.contains(kontak.notifikasiTarget)
+          ? kontak.notifikasiTarget
+          : 'keluarga';
     } catch (e) {
       _errorMessage = 'Gagal memuat data kontak: $e';
     } finally {
@@ -55,13 +59,31 @@ class _SettingScreenState extends State<SettingScreen> {
   }
 
   Future<bool> _simpanNotifikasi(String target) async {
-    if (target == 'keluarga' && _noHpKeluargaController.text.trim().isEmpty) {
-      _showMessage('No. HP Keluarga wajib diisi.');
+    final noHpKeluarga = _noHpKeluargaController.text.trim();
+    final noHpLansia = _noHpLansiaController.text.trim();
+    final perluKeluarga = target == 'keluarga' || target == 'keduanya';
+    final perluLansia = target == 'lansia' || target == 'keduanya';
+
+    if (!_targetTersedia.contains(target)) {
+      _showMessage('Target notifikasi tidak valid.');
       return false;
     }
 
-    if (target == 'lansia' && _noHpLansiaController.text.trim().isEmpty) {
-      _showMessage('No. HP Lansia wajib diisi untuk target Lansia.');
+    if (perluKeluarga && noHpKeluarga.isEmpty) {
+      _showMessage(
+        target == 'keduanya'
+            ? 'No. HP Keluarga wajib diisi untuk target Keduanya.'
+            : 'No. HP Keluarga wajib diisi.',
+      );
+      return false;
+    }
+
+    if (perluLansia && noHpLansia.isEmpty) {
+      _showMessage(
+        target == 'keduanya'
+            ? 'No. HP Lansia wajib diisi untuk target Keduanya.'
+            : 'No. HP Lansia wajib diisi untuk target Lansia.',
+      );
       return false;
     }
 
@@ -73,14 +95,20 @@ class _SettingScreenState extends State<SettingScreen> {
     try {
       await _repo.updateKontak(
         lansiaId: widget.lansiaId,
-        noHpKeluarga: _noHpKeluargaController.text.trim(),
-        noHpLansia: _noHpLansiaController.text.trim(),
+        noHpKeluarga: noHpKeluarga,
+        noHpLansia: noHpLansia,
         notifikasiTarget: target,
       );
       _target = target;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pengaturan notifikasi berhasil disimpan.')),
+          SnackBar(
+            content: Text(
+              target == 'keduanya'
+                  ? 'Notifikasi akan dikirim ke Keluarga dan Lansia.'
+                  : 'Pengaturan notifikasi berhasil disimpan.',
+            ),
+          ),
         );
       }
       return true;
@@ -209,7 +237,13 @@ class _SettingScreenState extends State<SettingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 12,
+                ),
+              ),
               const SizedBox(height: 2),
               Text(
                 value,
@@ -279,24 +313,40 @@ class _SettingScreenState extends State<SettingScreen> {
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
-                  SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(
-                        value: 'keluarga',
-                        label: Text('Keluarga'),
-                        icon: Icon(Icons.family_restroom_outlined),
-                      ),
-                      ButtonSegment(
-                        value: 'lansia',
-                        label: Text('Lansia'),
-                        icon: Icon(Icons.person_outline),
-                      ),
-                    ],
-                    selected: {targetDialog},
-                    onSelectionChanged: (selected) {
-                      setSheetState(() => targetDialog = selected.first);
-                    },
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<String>(
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(
+                          value: 'keluarga',
+                          label: Text('Keluarga'),
+                        ),
+                        ButtonSegment(
+                          value: 'lansia',
+                          label: Text('Lansia'),
+                        ),
+                        ButtonSegment(
+                          value: 'keduanya',
+                          label: Text('Keduanya'),
+                        ),
+                      ],
+                      selected: {targetDialog},
+                      onSelectionChanged: (selected) {
+                        setSheetState(() => targetDialog = selected.first);
+                      },
+                    ),
                   ),
+                  if (targetDialog == 'keduanya') ...[
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Notifikasi akan dikirim ke nomor Keluarga dan nomor Lansia.',
+                      style: TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 22),
                   SizedBox(
                     width: double.infinity,
@@ -304,7 +354,8 @@ class _SettingScreenState extends State<SettingScreen> {
                       onPressed: _isSaving
                           ? null
                           : () async {
-                              final berhasil = await _simpanNotifikasi(targetDialog);
+                              final berhasil =
+                                  await _simpanNotifikasi(targetDialog);
                               if (berhasil && sheetContext.mounted) {
                                 Navigator.pop(sheetContext);
                               }
@@ -382,7 +433,8 @@ class _SettingScreenState extends State<SettingScreen> {
                     children: [
                       CircleAvatar(
                         radius: 24,
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                        backgroundColor:
+                            AppColors.primary.withValues(alpha: 0.1),
                         child: Text(
                           lansia.nama.isEmpty
                               ? 'L'
@@ -400,7 +452,8 @@ class _SettingScreenState extends State<SettingScreen> {
                           children: [
                             Text(
                               lansia.nama,
-                              style: const TextStyle(fontWeight: FontWeight.w700),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700),
                             ),
                             Text(
                               lansia.email,
@@ -437,7 +490,10 @@ class _SettingScreenState extends State<SettingScreen> {
                               ? null
                               : () async {
                                   Navigator.pop(sheetContext);
-                                  await _putuskanHubungan(deviceProvider, lansia);
+                                  await _putuskanHubungan(
+                                    deviceProvider,
+                                    lansia,
+                                  );
                                 },
                           icon: const Icon(Icons.link_off),
                           label: const Text('Putuskan'),
@@ -470,7 +526,9 @@ class _SettingScreenState extends State<SettingScreen> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
               SizedBox(height: 14),
-              Text('ObatKu membantu mengatur jadwal dan memantau pengambilan obat melalui dispenser pintar.'),
+              Text(
+                'ObatKu membantu mengatur jadwal dan memantau pengambilan obat melalui dispenser pintar.',
+              ),
               SizedBox(height: 12),
               Text(
                 'Versi 1.0.0',
@@ -529,7 +587,10 @@ class _SettingScreenState extends State<SettingScreen> {
       ),
       title: Text(
         title,
-        style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.ink),
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          color: AppColors.ink,
+        ),
       ),
       subtitle: subtitle == null
           ? null
@@ -563,7 +624,9 @@ class _SettingScreenState extends State<SettingScreen> {
     final deviceProvider = context.watch<DeviceProvider>();
     final profile = deviceProvider.profile;
     final email = AuthService().currentUser?.email ?? '-';
-    final nama = (profile?.nama ?? '').trim().isEmpty ? 'Pengguna ObatKu' : profile!.nama;
+    final nama = (profile?.nama ?? '').trim().isEmpty
+        ? 'Pengguna ObatKu'
+        : profile!.nama;
     final roleLabel = deviceProvider.isKeluarga ? 'Keluarga' : 'Lansia';
     final initial = nama.isEmpty ? 'O' : nama.substring(0, 1).toUpperCase();
 
@@ -663,7 +726,9 @@ class _SettingScreenState extends State<SettingScreen> {
               _menuTile(
                 icon: Icons.chat_bubble_outline,
                 title: 'Notifikasi WhatsApp',
-                subtitle: _isLoading ? 'Memuat pengaturan...' : 'Nomor dan penerima notifikasi',
+                subtitle: _isLoading
+                    ? 'Memuat pengaturan...'
+                    : 'Nomor dan penerima notifikasi',
                 onTap: _isLoading ? () {} : _showNotificationSettings,
               ),
               if (deviceProvider.isKeluarga) ...[
