@@ -7,7 +7,7 @@ class KontakLansiaModel {
   final String nama;
   final String noHpKeluarga;
   final String? noHpLansia;
-  final String notifikasiTarget; // 'keluarga' | 'lansia'
+  final String notifikasiTarget; // 'keluarga' | 'lansia' | 'keduanya'
 
   KontakLansiaModel({
     required this.nama,
