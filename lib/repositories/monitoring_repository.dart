@@ -72,32 +72,35 @@ class MonitoringRepository {
 
   /// Grafik jumlah obat yang benar-benar diambil per hari.
   ///
-  /// Hanya status `diambil` yang masuk grafik. Untuk baris ini
-  /// `waktu_diambil` seharusnya terisi, tetapi tetap dicek null agar aman.
+  /// Hanya status `diambil` yang masuk grafik. `created_at` dipakai sebagai
+  /// sumber tanggal utama karena selalu terisi ketika ESP32 membuat riwayat.
   Future<List<FrekuensiHarianModel>> getFrekuensiPengambilan({
     required String lansiaId,
     required RentangWaktu rentang,
   }) async {
     final hari = rentang == RentangWaktu.mingguan ? 7 : 30;
-    final sejak = DateTime.now().subtract(Duration(days: hari));
+    final sekarang = DateTime.now();
+    final awalHariIni = DateTime(sekarang.year, sekarang.month, sekarang.day);
+    final awalRentang = awalHariIni.subtract(Duration(days: hari - 1));
+    final akhirRentang = awalHariIni.add(const Duration(days: 1));
 
     final response = await _client
         .from('riwayat_konsumsi')
-        .select('waktu_diambil, status, created_at')
+        .select('status, created_at')
         .eq('lansia_id', lansiaId)
         .eq('status', 'diambil')
-        .gte('created_at', sejak.toIso8601String())
+        .gte('created_at', awalRentang.toUtc().toIso8601String())
+        .lt('created_at', akhirRentang.toUtc().toIso8601String())
         .order('created_at', ascending: true);
-
-    final rows = response as List;
 
     final Map<String, int> hitungPerTanggal = {};
 
-    for (final row in rows) {
-      final waktuRaw = row['waktu_diambil'] as String?;
-      if (waktuRaw == null || waktuRaw.isEmpty) continue;
+    for (final raw in response as List) {
+      final row = raw as Map<String, dynamic>;
+      final createdAtRaw = row['created_at'] as String?;
+      if (createdAtRaw == null || createdAtRaw.isEmpty) continue;
 
-      final waktu = DateTime.parse(waktuRaw).toLocal();
+      final waktu = DateTime.parse(createdAtRaw).toLocal();
       final key = '${waktu.year}-${waktu.month}-${waktu.day}';
       hitungPerTanggal[key] = (hitungPerTanggal[key] ?? 0) + 1;
     }
@@ -105,12 +108,12 @@ class MonitoringRepository {
     final hasil = <FrekuensiHarianModel>[];
 
     for (int i = hari - 1; i >= 0; i--) {
-      final tanggal = DateTime.now().subtract(Duration(days: i));
+      final tanggal = awalHariIni.subtract(Duration(days: i));
       final key = '${tanggal.year}-${tanggal.month}-${tanggal.day}';
 
       hasil.add(
         FrekuensiHarianModel(
-          tanggal: DateTime(tanggal.year, tanggal.month, tanggal.day),
+          tanggal: tanggal,
           jumlahDiambil: hitungPerTanggal[key] ?? 0,
         ),
       );
@@ -130,13 +133,17 @@ class MonitoringRepository {
     required RentangWaktu rentang,
   }) async {
     final hari = rentang == RentangWaktu.mingguan ? 7 : 30;
-    final sejak = DateTime.now().subtract(Duration(days: hari));
+    final sekarang = DateTime.now();
+    final awalHariIni = DateTime(sekarang.year, sekarang.month, sekarang.day);
+    final awalRentang = awalHariIni.subtract(Duration(days: hari - 1));
+    final akhirRentang = awalHariIni.add(const Duration(days: 1));
 
     final response = await _client
         .from('riwayat_konsumsi')
         .select('status, created_at')
         .eq('lansia_id', lansiaId)
-        .gte('created_at', sejak.toIso8601String());
+        .gte('created_at', awalRentang.toUtc().toIso8601String())
+        .lt('created_at', akhirRentang.toUtc().toIso8601String());
 
     final rows = response as List;
 
@@ -145,7 +152,7 @@ class MonitoringRepository {
     int gagalVerifikasi = 0;
 
     for (final row in rows) {
-      final status = row['status'] as String? ?? '';
+      final status = (row['status'] as String? ?? '').toLowerCase();
 
       switch (status) {
         case 'diambil':
