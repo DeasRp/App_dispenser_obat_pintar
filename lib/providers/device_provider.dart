@@ -33,6 +33,16 @@ class DeviceProvider with ChangeNotifier {
   bool _mqttInitialSetupComplete = false;
   bool _reconnectSyncRunning = false;
 
+  static const Duration _mqttFallbackTimeout = Duration(milliseconds: 1200);
+  static const Set<String> _requiredRefreshTopics = {
+    'status',
+    'stock',
+    'schedule',
+  };
+
+  Completer<void>? _mqttRefreshCompleter;
+  final Set<String> _mqttRefreshTopicsSeen = <String>{};
+
   /// Dispense manual hanya tersedia untuk akun Lansia yang berada dekat
   /// dengan dispenser. Akun Keluarga tetap dapat memantau dan mengelola
   /// jadwal, tetapi tidak dapat mengeluarkan obat dari jarak jauh.
@@ -105,6 +115,8 @@ class DeviceProvider with ChangeNotifier {
     }
   }
 
+  /// Supabase hanya digunakan sebagai cadangan apabila data MQTT tidak
+  /// tersedia / tidak lengkap dalam batas waktu yang ditentukan.
   Future<void> _muatStatusDariSupabase() async {
     if (!sudahTerhubungDenganLansia) return;
 
@@ -139,7 +151,7 @@ class DeviceProvider with ChangeNotifier {
         }
 
         if (next != null) {
-          final jamText = (next['jam'] as String? ?? '--:--');
+          final jamText = next['jam'] as String? ?? '--:--';
           final jumlah = next['jumlah_angka'];
           final satuan = next['satuan'] as String? ?? '';
           status = status.copyWith(
@@ -212,6 +224,8 @@ class DeviceProvider with ChangeNotifier {
     _lansiaId = null;
     _mqttInitialSetupComplete = false;
     _reconnectSyncRunning = false;
+    _mqttRefreshCompleter = null;
+    _mqttRefreshTopicsSeen.clear();
 
     _mqttService?.disconnect();
     _mqttService = null;
@@ -225,9 +239,8 @@ class DeviceProvider with ChangeNotifier {
 
       if (!sudahTerhubungDenganLansia) return;
 
-      await _muatStatusDariSupabase();
-      await refreshUnreadNotifications(notify: false);
-
+      // MQTT menjadi sumber utama status perangkat. Supabase baru dipakai
+      // bila MQTT gagal tersambung atau tidak mengirim data yang dibutuhkan.
       try {
         await _hubungkanMqtt();
       } catch (e) {
@@ -236,8 +249,15 @@ class DeviceProvider with ChangeNotifier {
           isDeviceOnline: false,
           wifiStatusText: 'Perangkat offline',
         );
-        debugPrint('MQTT tidak tersedia, aplikasi tetap berjalan: $e');
+        debugPrint('MQTT tidak tersedia, menggunakan fallback Supabase: $e');
+        await _muatStatusDariSupabase();
       }
+
+      if (!isMqttConnected) {
+        await _muatStatusDariSupabase();
+      }
+
+      await refreshUnreadNotifications(notify: false);
     } catch (e) {
       errorMessage = e.toString();
       debugPrint('DeviceProvider init gagal: $e');
@@ -256,6 +276,63 @@ class DeviceProvider with ChangeNotifier {
     mqtt.subscribe(MqttConfig.topicMedicineNotify);
   }
 
+  String? _refreshTopicKey(String topic) {
+    if (topic == MqttConfig.topicMedicineStatus) return 'status';
+    if (topic == MqttConfig.topicMedicineStock) return 'stock';
+    if (topic == MqttConfig.topicMedicineSchedule) return 'schedule';
+    return null;
+  }
+
+  void _tandaiResponsRefreshMqtt(String topic) {
+    final completer = _mqttRefreshCompleter;
+    if (completer == null || completer.isCompleted) return;
+
+    final key = _refreshTopicKey(topic);
+    if (key == null) return;
+
+    _mqttRefreshTopicsSeen.add(key);
+    if (_mqttRefreshTopicsSeen.containsAll(_requiredRefreshTopics)) {
+      completer.complete();
+    }
+  }
+
+  Future<void> _refreshMqttDenganFallback() async {
+    if (!sudahTerhubungDenganLansia) return;
+
+    if (!isMqttConnected || _mqttService == null) {
+      debugPrint('MQTT offline, memakai fallback Supabase.');
+      await _muatStatusDariSupabase();
+      return;
+    }
+
+    final completer = Completer<void>();
+    _mqttRefreshCompleter = completer;
+    _mqttRefreshTopicsSeen.clear();
+
+    // Perintah refresh dikirim langsung, sehingga UI dapat diperbarui segera
+    // begitu pesan MQTT pertama diterima tanpa menunggu query Supabase.
+    _mqttService!.publish(MqttConfig.topicCmdRefresh, '1');
+
+    try {
+      await completer.future.timeout(_mqttFallbackTimeout);
+      debugPrint('Refresh selesai menggunakan data MQTT real-time.');
+    } on TimeoutException {
+      debugPrint(
+        'Respons MQTT tidak lengkap dalam '
+        '${_mqttFallbackTimeout.inMilliseconds} ms, memakai fallback Supabase.',
+      );
+      await _muatStatusDariSupabase();
+    } catch (e) {
+      debugPrint('Refresh MQTT gagal, memakai fallback Supabase: $e');
+      await _muatStatusDariSupabase();
+    } finally {
+      if (identical(_mqttRefreshCompleter, completer)) {
+        _mqttRefreshCompleter = null;
+        _mqttRefreshTopicsSeen.clear();
+      }
+    }
+  }
+
   Future<void> _sinkronkanSetelahReconnect() async {
     if (_reconnectSyncRunning ||
         !isMqttConnected ||
@@ -270,17 +347,21 @@ class DeviceProvider with ChangeNotifier {
       _subscribeSemuaTopic(mqtt);
 
       mqtt.publish(MqttConfig.topicCmdSetLansia, _lansiaId!);
-      await Future.delayed(const Duration(milliseconds: 350));
+      await Future.delayed(const Duration(milliseconds: 250));
       mqtt.publish(MqttConfig.topicCmdSyncJadwal, '1');
-      await Future.delayed(const Duration(milliseconds: 350));
-      mqtt.publish(MqttConfig.topicCmdRefresh, '1');
+      await Future.delayed(const Duration(milliseconds: 250));
 
-      await _muatStatusDariSupabase();
+      // Refresh utama dari MQTT. Supabase hanya dipanggil bila respons MQTT
+      // tidak lengkap dalam timeout.
+      await _refreshMqttDenganFallback();
       await refreshUnreadNotifications(notify: false);
 
-      debugPrint('MQTT reconnect: LANSIA_ID, jadwal, dan status disinkronkan ulang.');
+      debugPrint(
+        'MQTT reconnect: LANSIA_ID, jadwal, dan status disinkronkan ulang.',
+      );
     } catch (e) {
       debugPrint('Gagal auto-sync setelah MQTT reconnect: $e');
+      await _muatStatusDariSupabase();
     } finally {
       _reconnectSyncRunning = false;
       notifyListeners();
@@ -331,9 +412,11 @@ class DeviceProvider with ChangeNotifier {
     _subscribeSemuaTopic(mqtt);
     mqtt.publish(MqttConfig.topicCmdSetLansia, _lansiaId!);
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 350));
     _mqttInitialSetupComplete = true;
-    await refreshDeviceStatus();
+
+    // Status awal juga meminta MQTT terlebih dahulu.
+    await _refreshMqttDenganFallback();
   }
 
   Future<void> refreshLansiaConnection() async {
@@ -391,6 +474,7 @@ class DeviceProvider with ChangeNotifier {
           break;
       }
 
+      _tandaiResponsRefreshMqtt(topic);
       notifyListeners();
     } catch (e) {
       debugPrint('Error parsing MQTT payload dari topic $topic: $e');
@@ -398,10 +482,7 @@ class DeviceProvider with ChangeNotifier {
   }
 
   Future<void> refreshDeviceStatus() async {
-    await _muatStatusDariSupabase();
-    if (isMqttConnected) {
-      _mqttService?.publish(MqttConfig.topicCmdRefresh, '1');
-    }
+    await _refreshMqttDenganFallback();
     notifyListeners();
   }
 
@@ -420,6 +501,8 @@ class DeviceProvider with ChangeNotifier {
   @override
   void dispose() {
     _mqttInitialSetupComplete = false;
+    _mqttRefreshCompleter = null;
+    _mqttRefreshTopicsSeen.clear();
     _mqttService?.disconnect();
     super.dispose();
   }
