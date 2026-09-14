@@ -7,6 +7,7 @@ import '../core/constants/mqtt_config.dart';
 import '../core/services/auth_service.dart';
 import '../core/services/mqtt_service.dart';
 import '../core/services/supabase_service.dart';
+import '../core/utils/stock_percentage.dart';
 import '../models/device_status.dart';
 
 class DeviceProvider with ChangeNotifier {
@@ -437,7 +438,7 @@ class DeviceProvider with ChangeNotifier {
 
         case MqttConfig.topicMedicineStock:
           status = status.copyWith(
-            stokObatPercent: data['percent'] ?? 0,
+            stokObatPercent: stockPercentageFromPayload(data),
           );
           break;
 
