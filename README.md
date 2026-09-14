@@ -403,9 +403,10 @@ Kemudian tampilkan pada README:
 
 ```html
 <p align="center">
-  <img src="assets/screenshots/login.png" width="220"/>
-  <img src="assets/screenshots/dashboard.png" width="220"/>
-  <img src="assets/screenshots/jadwal.png" width="220"/>
+  <img src="assets/screenshots/Login.jpeg" width="220"/>
+  <img src="assets/screenshots/Dashboard.jpeg" width="220"/>
+  <img src="assets/screenshots/Jadwal.jpeg" width="220"/>
+  <img src="assets/screenshots/Monitoring.jpeg" width="220"/>
 </p>
 ```
 
