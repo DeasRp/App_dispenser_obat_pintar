@@ -9,7 +9,7 @@ import 'hubungkan_lansia_screen.dart';
 import 'kelola_jadwal_screen.dart';
 import 'monitoring_screen.dart';
 import 'notifikasi_screen.dart';
-import 'setting_screen.dart';
+import 'profile_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -27,14 +27,14 @@ class _MainShellState extends State<MainShell> {
     _NavItem(label: 'Home', icon: Icons.home_outlined, activeIcon: Icons.home),
     _NavItem(label: 'Jadwal', icon: Icons.calendar_month_outlined, activeIcon: Icons.calendar_month),
     _NavItem(label: 'Monitoring', icon: Icons.analytics_outlined, activeIcon: Icons.analytics),
-    _NavItem(label: 'Setting', icon: Icons.settings_outlined, activeIcon: Icons.settings),
+    _NavItem(label: 'Profile', icon: Icons.person_outline, activeIcon: Icons.person),
   ];
 
   static const List<String> _titles = [
     'ObatKu',
     'Kelola Jadwal',
     'Monitoring',
-    'Pengaturan',
+    'Profile',
   ];
 
   @override
@@ -237,7 +237,7 @@ class _MainShellState extends State<MainShell> {
       const DashboardScreen(),
       KelolaJadwalScreen(lansiaId: deviceProvider.lansiaId),
       MonitoringScreen(lansiaId: deviceProvider.lansiaId),
-      SettingScreen(lansiaId: deviceProvider.lansiaId),
+      ProfileScreen(lansiaId: deviceProvider.lansiaId),
     ];
 
     final tampilkanEksporCsv =
