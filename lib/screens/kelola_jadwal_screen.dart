@@ -24,7 +24,7 @@ class _KelolaJadwalScreenState extends State<KelolaJadwalScreen> {
   final _repo = JadwalRepository();
   late Future<List<JadwalObatModel>> _jadwalFuture;
 
-  static const int jumlahKompartemen = 6;
+  static const int jumlahKompartemen = 5;
   static const List<String> pilihanSatuan = ['tablet', 'kapsul', 'butir'];
 
   @override
