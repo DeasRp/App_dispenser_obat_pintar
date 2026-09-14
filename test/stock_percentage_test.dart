@@ -7,7 +7,7 @@ void main() {
       expect(calculateStockPercentage(30), 100);
     });
 
-    test('menghitung kenaikan 5 gram per kompartemen', () {
+    test('menghitung perubahan berat terhadap stok penuh 30 gram', () {
       expect(calculateStockPercentage(0), 0);
       expect(calculateStockPercentage(5), 17);
       expect(calculateStockPercentage(10), 33);
@@ -22,14 +22,23 @@ void main() {
     });
   });
 
+  group('stabilizeStockDisplayPercent', () {
+    test('membulatkan visual stok ke kelipatan 5 persen', () {
+      expect(stabilizeStockDisplayPercent(71), 70);
+      expect(stabilizeStockDisplayPercent(73), 75);
+      expect(stabilizeStockDisplayPercent(98), 100);
+    });
+  });
+
   group('stockPercentageFromPayload', () {
     test('mengutamakan berat gram dari payload MQTT', () {
       expect(stockPercentageFromPayload({'weight': 30}), 100);
       expect(stockPercentageFromPayload({'weight_grams': '15'}), 50);
     });
 
-    test('tetap menerima payload percent lama', () {
+    test('tetap menerima payload percent lama dan menstabilkan visual', () {
       expect(stockPercentageFromPayload({'percent': 75}), 75);
+      expect(stockPercentageFromPayload({'percent': 73}), 75);
     });
   });
 }
