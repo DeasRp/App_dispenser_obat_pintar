@@ -6,7 +6,7 @@ const double fullMedicineStockGrams = 30.0;
 int calculateStockPercentage(num weightGrams) {
   final percentage = (weightGrams.toDouble() / fullMedicineStockGrams * 100)
       .round();
-  return percentage.clamp(0, 100);
+  return percentage.clamp(0, 100).toInt();
 }
 
 /// Membaca persentase stok dari payload MQTT.
@@ -30,7 +30,7 @@ int stockPercentageFromPayload(Map<String, dynamic> data) {
   }
 
   final percent = _parseNumber(data['percent']);
-  return (percent ?? 0).round().clamp(0, 100);
+  return (percent ?? 0).round().clamp(0, 100).toInt();
 }
 
 num? _parseNumber(dynamic value) {
