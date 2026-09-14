@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:provider/provider.dart';
 
 import '../core/theme/app_theme.dart';
 import '../models/monitoring_model.dart';
+import '../providers/device_provider.dart';
 import '../repositories/monitoring_repository.dart';
 
 class MonitoringScreen extends StatefulWidget {
@@ -45,6 +47,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   }
 
   Future<void> _refresh() async {
+    await context.read<DeviceProvider>().refreshDeviceStatus();
     setState(_muatSemua);
     await Future.wait<dynamic>([
       _stokFuture,
@@ -70,6 +73,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final liveStockPercent = context.select<DeviceProvider, int>(
+      (provider) => provider.status.stokObatPercent,
+    );
+
     return Scaffold(
       backgroundColor: AppColors.surfaceSoft,
       body: RefreshIndicator(
@@ -81,7 +88,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           children: [
             _buildHeroMonitoring(),
             const SizedBox(height: 20),
-            _buildStokSection(),
+            _buildStokSection(liveStockPercent),
             const SizedBox(height: 20),
             _buildFrekuensiSection(),
             const SizedBox(height: 20),
@@ -152,25 +159,17 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     );
   }
 
-  Widget _buildStokSection() {
+  Widget _buildStokSection(int liveStockPercent) {
     return _buildMonitoringCard(
       icon: Icons.inventory_2_outlined,
       iconColor: AppColors.primary,
       title: 'Stok Obat',
       subtitle: 'Perubahan persentase stok selama 30 hari terakhir',
-      trailing: FutureBuilder<List<RiwayatStokModel>>(
-        future: _stokFuture,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return _buildBadge('--', AppColors.muted);
-          }
-          return _buildBadge(
-            '${snapshot.data!.last.persen}%',
-            _stokColor(snapshot.data!.last.persen),
-          );
-        },
+      trailing: _buildBadge(
+        '$liveStockPercent%',
+        _stokColor(liveStockPercent),
       ),
-      child: _buildStokChart(),
+      child: _buildStokChart(liveStockPercent),
     );
   }
 
@@ -387,7 +386,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     );
   }
 
-  Widget _buildStokChart() {
+  Widget _buildStokChart(int liveStockPercent) {
     return FutureBuilder<List<RiwayatStokModel>>(
       future: _stokFuture,
       builder: (context, snapshot) {
@@ -402,22 +401,39 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         }
 
         final data = snapshot.data ?? [];
-        if (data.isEmpty) {
+
+        // Riwayat stok tetap berasal dari Supabase. Nilai MQTT terbaru
+        // ditambahkan sebagai titik terakhir agar grafik ikut bergerak secara
+        // realtime tanpa menunggu snapshot berkala dari ESP32.
+        final spots = <FlSpot>[
+          for (int i = 0; i < data.length; i++)
+            FlSpot(i.toDouble(), data[i].persen.toDouble()),
+        ];
+
+        final perluTitikRealtime =
+            data.isEmpty || data.last.persen != liveStockPercent;
+        if (perluTitikRealtime) {
+          spots.add(
+            FlSpot(data.length.toDouble(), liveStockPercent.toDouble()),
+          );
+        }
+
+        if (spots.isEmpty) {
           return _buildEmptyState(
             icon: Icons.inventory_2_outlined,
             text: 'Belum ada riwayat stok obat.',
           );
         }
 
-        final spots = <FlSpot>[
-          for (int i = 0; i < data.length; i++)
-            FlSpot(i.toDouble(), data[i].persen.toDouble()),
-        ];
+        final totalPoints = spots.length;
+        final xInterval = totalPoints <= 4 ? 1.0 : (totalPoints / 4).ceilToDouble();
 
         return LineChart(
           LineChartData(
             minY: 0,
             maxY: 100,
+            minX: 0,
+            maxX: totalPoints <= 1 ? 1 : (totalPoints - 1).toDouble(),
             lineTouchData: LineTouchData(
               enabled: true,
               touchTooltipData: LineTouchTooltipData(
@@ -468,12 +484,28 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                 sideTitles: SideTitles(
                   showTitles: true,
                   reservedSize: 28,
-                  interval: (data.length / 4).clamp(1, data.length).toDouble(),
+                  interval: xInterval,
                   getTitlesWidget: (value, meta) {
                     final index = value.toInt();
-                    if (index < 0 || index >= data.length) {
+                    if (index < 0 || index >= totalPoints) {
                       return const SizedBox.shrink();
                     }
+
+                    // Titik paling akhir dapat merupakan nilai realtime MQTT.
+                    if (index >= data.length) {
+                      return const Padding(
+                        padding: EdgeInsets.only(top: 6),
+                        child: Text(
+                          'Live',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      );
+                    }
+
                     final tgl = data[index].createdAt.toLocal();
                     return Padding(
                       padding: const EdgeInsets.only(top: 6),
@@ -498,7 +530,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                 barWidth: 3,
                 color: AppColors.primary,
                 isStrokeCapRound: true,
-                dotData: FlDotData(show: data.length <= 8),
+                dotData: FlDotData(show: spots.length <= 8),
                 belowBarData: BarAreaData(
                   show: true,
                   gradient: LinearGradient(
@@ -536,19 +568,19 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         if (data.isEmpty) {
           return _buildEmptyState(
             icon: Icons.medication_outlined,
-            text: 'Belum ada data pengambilan obat.',
+            text: 'Belum ada riwayat pengambilan obat.',
           );
         }
 
-        final labelInterval = data.length > 10 ? (data.length / 6).ceil() : 1;
         final maxJumlah = data.fold<int>(
           0,
           (max, item) => item.jumlahDiambil > max ? item.jumlahDiambil : max,
         );
-        final maxY = (maxJumlah < 3 ? 3 : maxJumlah + 1).toDouble();
+        final maxY = maxJumlah < 4 ? 4.0 : (maxJumlah + 1).toDouble();
 
         return BarChart(
           BarChartData(
+            minY: 0,
             maxY: maxY,
             alignment: BarChartAlignment.spaceAround,
             barTouchData: BarTouchData(
@@ -574,6 +606,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                 strokeWidth: 1,
               ),
             ),
+            borderData: FlBorderData(show: false),
             titlesData: FlTitlesData(
               rightTitles: const AxisTitles(
                 sideTitles: SideTitles(showTitles: false),
@@ -584,36 +617,39 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
               leftTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
-                  reservedSize: 28,
                   interval: 1,
-                  getTitlesWidget: (value, meta) => Text(
-                    value.toInt().toString(),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: AppColors.muted,
-                    ),
-                  ),
+                  reservedSize: 28,
+                  getTitlesWidget: (value, meta) {
+                    if (value % 1 != 0) return const SizedBox.shrink();
+                    return Text(
+                      value.toInt().toString(),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.muted,
+                      ),
+                    );
+                  },
                 ),
               ),
               bottomTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
-                  reservedSize: 28,
+                  reservedSize: 30,
                   getTitlesWidget: (value, meta) {
                     final index = value.toInt();
                     if (index < 0 || index >= data.length) {
                       return const SizedBox.shrink();
                     }
-                    if (index % labelInterval != 0) {
-                      return const SizedBox.shrink();
-                    }
-                    final tgl = data[index].tanggal;
+                    final tanggal = data[index].tanggal;
+                    final label = _rentangFrekuensi == RentangWaktu.mingguan
+                        ? _namaHari(tanggal.weekday)
+                        : '${tanggal.day}/${tanggal.month}';
                     return Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(
-                        '${tgl.day}/${tgl.month}',
+                        label,
                         style: const TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           color: AppColors.muted,
                         ),
                       ),
@@ -622,7 +658,6 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                 ),
               ),
             ),
-            borderData: FlBorderData(show: false),
             barGroups: [
               for (int i = 0; i < data.length; i++)
                 BarChartGroupData(
@@ -630,14 +665,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                   barRods: [
                     BarChartRodData(
                       toY: data[i].jumlahDiambil.toDouble(),
-                      width: data.length > 15 ? 7 : 16,
+                      color: const Color(0xFF6C63FF),
+                      width: _rentangFrekuensi == RentangWaktu.mingguan ? 18 : 7,
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(5),
-                      ),
-                      gradient: const LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [Color(0xFF8C85FF), Color(0xFF5F56E8)],
                       ),
                     ),
                   ],
@@ -667,98 +698,104 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         if (data == null || data.total == 0) {
           return _buildEmptyState(
             icon: Icons.verified_outlined,
-            text: 'Belum ada data kepatuhan.',
+            text: 'Belum ada data kepatuhan pada rentang ini.',
           );
         }
 
-        final persen = data.persenKepatuhan;
+        final bagian = <PieChartSectionData>[];
+        if (data.diambil > 0) {
+          bagian.add(
+            PieChartSectionData(
+              value: data.diambil.toDouble(),
+              color: AppColors.success,
+              title: '${data.diambil}',
+              radius: 58,
+              titleStyle: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          );
+        }
+        if (data.terlewat > 0) {
+          bagian.add(
+            PieChartSectionData(
+              value: data.terlewat.toDouble(),
+              color: AppColors.error,
+              title: '${data.terlewat}',
+              radius: 58,
+              titleStyle: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          );
+        }
+        if (data.gagalVerifikasi > 0) {
+          bagian.add(
+            PieChartSectionData(
+              value: data.gagalVerifikasi.toDouble(),
+              color: AppColors.warning,
+              title: '${data.gagalVerifikasi}',
+              radius: 58,
+              titleStyle: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          );
+        }
 
         return Row(
           children: [
             Expanded(
               flex: 5,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  PieChart(
-                    PieChartData(
-                      startDegreeOffset: -90,
-                      sectionsSpace: 3,
-                      centerSpaceRadius: 50,
-                      sections: [
-                        if (data.diambil > 0)
-                          PieChartSectionData(
-                            value: data.diambil.toDouble(),
-                            color: AppColors.success,
-                            title: '',
-                            radius: 20,
-                          ),
-                        if (data.gagalVerifikasi > 0)
-                          PieChartSectionData(
-                            value: data.gagalVerifikasi.toDouble(),
-                            color: AppColors.warning,
-                            title: '',
-                            radius: 20,
-                          ),
-                        if (data.terlewat > 0)
-                          PieChartSectionData(
-                            value: data.terlewat.toDouble(),
-                            color: AppColors.error,
-                            title: '',
-                            radius: 20,
-                          ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${persen.toStringAsFixed(0)}%',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                      const Text(
-                        'kepatuhan',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppColors.muted,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              child: PieChart(
+                PieChartData(
+                  sections: bagian,
+                  centerSpaceRadius: 38,
+                  sectionsSpace: 3,
+                  borderData: FlBorderData(show: false),
+                ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               flex: 4,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildLegenda(
+                  _buildLegend(
                     AppColors.success,
-                    Icons.check_circle_outline,
                     'Diambil',
-                    data.diambil,
+                    '${data.diambil}',
                   ),
-                  const SizedBox(height: 8),
-                  _buildLegenda(
-                    AppColors.warning,
-                    Icons.help_outline,
-                    'Gagal verifikasi',
-                    data.gagalVerifikasi,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildLegenda(
+                  const SizedBox(height: 10),
+                  _buildLegend(
                     AppColors.error,
-                    Icons.schedule_outlined,
                     'Terlewat',
-                    data.terlewat,
+                    '${data.terlewat}',
+                  ),
+                  if (data.gagalVerifikasi > 0) ...[
+                    const SizedBox(height: 10),
+                    _buildLegend(
+                      AppColors.warning,
+                      'Gagal',
+                      '${data.gagalVerifikasi}',
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  Text(
+                    '${data.persentaseDiambil}% patuh',
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ],
               ),
@@ -769,44 +806,35 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     );
   }
 
-  Widget _buildLegenda(
-    Color warna,
-    IconData icon,
-    String label,
-    int jumlah,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: warna.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: warna, size: 17),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: AppColors.body,
-              ),
-            ),
+  Widget _buildLegend(Color color, String label, String value) {
+    return Row(
+      children: [
+        Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(color: AppColors.muted, fontSize: 12),
           ),
-          Text(
-            '$jumlah',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: warna,
-            ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppColors.ink,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
           ),
-        ],
-      ),
+        ),
+      ],
     );
+  }
+
+  String _namaHari(int weekday) {
+    const names = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+    return names[weekday - 1];
   }
 }
