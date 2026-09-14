@@ -36,6 +36,9 @@ class KepatuhanModel {
   int get total => diambil + gagalVerifikasi + terlewat;
 
   double get persenKepatuhan => total == 0 ? 0 : (diambil / total) * 100;
+
+  /// Alias integer untuk kompatibilitas dengan tampilan Monitoring.
+  int get persentaseDiambil => persenKepatuhan.round();
 }
 
 /// Ringkasan status konsumsi obat untuk tanggal hari ini.
