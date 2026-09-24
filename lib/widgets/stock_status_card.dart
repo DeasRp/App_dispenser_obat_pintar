@@ -8,11 +8,13 @@ import '../core/theme/app_theme.dart';
 class StockStatusCard extends StatelessWidget {
   final bool isLoading;
   final int stockPercentage;
+  final double stockGrams;
 
   const StockStatusCard({
     super.key,
     required this.isLoading,
     required this.stockPercentage,
+    required this.stockGrams,
   });
 
   Color _getIndicatorColor(int percentage) {
@@ -47,7 +49,12 @@ class StockStatusCard extends StatelessWidget {
             if (isLoading)
               _buildLoadingState()
             else
-              _buildContent(context, safePercentage, indicatorColor),
+              _buildContent(
+                context,
+                safePercentage,
+                stockGrams,
+                indicatorColor,
+              ),
           ],
         ),
       ),
@@ -73,6 +80,7 @@ class StockStatusCard extends StatelessWidget {
   Widget _buildContent(
     BuildContext context,
     int percentage,
+    double grams,
     Color indicatorColor,
   ) {
     final theme = Theme.of(context);
@@ -81,12 +89,33 @@ class StockStatusCard extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '$percentage%',
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: indicatorColor,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '$percentage%',
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: indicatorColor,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: indicatorColor.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(AppRadius.full),
+              ),
+              child: Text(
+                '${grams.toStringAsFixed(1)} g',
+                style: TextStyle(
+                  color: indicatorColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         LinearProgressIndicator(
