@@ -280,6 +280,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         isLoading: deviceProvider.isLoading,
                         stockPercentage:
                             deviceProvider.status.stokObatPercent,
+                        stockGrams:
+                            deviceProvider.status.stokObatGram,
                       ),
                     ),
                     const SizedBox(height: 10),
