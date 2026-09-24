@@ -186,7 +186,10 @@ class DeviceProvider with ChangeNotifier {
       if (stok != null) {
         final persen = stok['persen'];
         if (persen is num) {
-          status = status.copyWith(stokObatPercent: persen.round());
+          status = status.copyWith(
+            stokObatPercent: persen.round(),
+            stokObatGram: calculateStockWeightFromPercentage(persen),
+          );
         }
       }
     } catch (e) {
@@ -439,6 +442,7 @@ class DeviceProvider with ChangeNotifier {
         case MqttConfig.topicMedicineStock:
           status = status.copyWith(
             stokObatPercent: stockPercentageFromPayload(data),
+            stokObatGram: stockWeightGramsFromPayload(data),
           );
           break;
 
