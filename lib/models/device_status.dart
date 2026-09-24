@@ -45,6 +45,7 @@ class DeviceStatus {
   final String nextScheduleObat;
   final String nextScheduleJumlah;
   final int stokObatPercent;
+  final double stokObatGram;
   final bool statusGelasTerisi;
   final List<JadwalItem> todaySchedule;
 
@@ -56,6 +57,7 @@ class DeviceStatus {
     required this.nextScheduleObat,
     required this.nextScheduleJumlah,
     required this.stokObatPercent,
+    required this.stokObatGram,
     required this.statusGelasTerisi,
     required this.todaySchedule,
   });
@@ -69,6 +71,7 @@ class DeviceStatus {
       nextScheduleObat: '-',
       nextScheduleJumlah: '-',
       stokObatPercent: 0,
+      stokObatGram: 0,
       statusGelasTerisi: false,
       todaySchedule: [],
     );
@@ -82,6 +85,7 @@ class DeviceStatus {
     String? nextScheduleObat,
     String? nextScheduleJumlah,
     int? stokObatPercent,
+    double? stokObatGram,
     bool? statusGelasTerisi,
     List<JadwalItem>? todaySchedule,
   }) {
@@ -93,6 +97,7 @@ class DeviceStatus {
       nextScheduleObat: nextScheduleObat ?? this.nextScheduleObat,
       nextScheduleJumlah: nextScheduleJumlah ?? this.nextScheduleJumlah,
       stokObatPercent: stokObatPercent ?? this.stokObatPercent,
+      stokObatGram: stokObatGram ?? this.stokObatGram,
       statusGelasTerisi: statusGelasTerisi ?? this.statusGelasTerisi,
       todaySchedule: todaySchedule ?? this.todaySchedule,
     );
