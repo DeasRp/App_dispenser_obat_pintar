@@ -790,7 +790,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                   ],
                   const SizedBox(height: 14),
                   Text(
-                    '${data.persentaseDiambil}% patuh',
+                    '${data.persenKepatuhan.toStringAsFixed(0)}% patuh',
                     style: const TextStyle(
                       color: AppColors.ink,
                       fontSize: 16,

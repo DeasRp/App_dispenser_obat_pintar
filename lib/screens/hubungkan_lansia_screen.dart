@@ -90,7 +90,7 @@ class _HubungkanLansiaScreenState extends State<HubungkanLansiaScreen> {
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      'Masukkan email yang digunakan oleh akun Lansia di Remindora.',
+                      'Masukkan email yang digunakan oleh akun Lansia diObatKu.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: AppColors.muted),
                     ),
