@@ -427,6 +427,19 @@ class DeviceProvider with ChangeNotifier {
     await init();
   }
 
+
+  Future<void> refreshProfile() async {
+    try {
+      await _muatProfile();
+      if (_profile?.role == UserRole.lansia) {
+        await _muatLansiaUntukAkunLansia(_profile!.id);
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Gagal memperbarui profil: $e');
+    }
+  }
+
   void _handleMessage(String topic, String payload) {
     try {
       final data = jsonDecode(payload) as Map<String, dynamic>;
