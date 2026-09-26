@@ -8,12 +8,14 @@ class AppProfile {
   final String nama;
   final UserRole role;
   final String? noHp;
+  final String? avatarUrl;
 
   const AppProfile({
     required this.id,
     required this.nama,
     required this.role,
     this.noHp,
+    this.avatarUrl,
   });
 
   factory AppProfile.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class AppProfile {
       nama: json['nama'] as String? ?? '',
       role: roleText == 'keluarga' ? UserRole.keluarga : UserRole.lansia,
       noHp: json['no_hp'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
     );
   }
 }
@@ -81,7 +84,7 @@ class AuthService {
 
     final response = await _client
         .from('profiles')
-        .select('id, nama, role, no_hp')
+        .select('id, nama, role, no_hp, avatar_url')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -92,6 +95,106 @@ class AuthService {
   Future<UserRole?> getCurrentRole() async {
     final profile = await getCurrentProfile();
     return profile?.role;
+  }
+
+
+  Future<AppProfile> updateProfile({
+    required String nama,
+    required String email,
+    required String noHp,
+  }) async {
+    final user = currentUser;
+    if (user == null) {
+      throw Exception('Pengguna belum login.');
+    }
+
+    final namaBersih = nama.trim();
+    final emailBersih = email.trim();
+    final noHpBersih = noHp.trim();
+
+    if (namaBersih.isEmpty) {
+      throw Exception('Nama tidak boleh kosong.');
+    }
+    if (emailBersih.isEmpty || !emailBersih.contains('@')) {
+      throw Exception('Email tidak valid.');
+    }
+
+    await _client.from('profiles').update({
+      'nama': namaBersih,
+      'no_hp': noHpBersih.isEmpty ? null : noHpBersih,
+    }).eq('id', user.id);
+
+    final profile = await getCurrentProfile();
+    if (profile?.role == UserRole.lansia) {
+      await _client.from('lansia').update({
+        'nama': namaBersih,
+        'no_hp_lansia': noHpBersih.isEmpty ? null : noHpBersih,
+      }).eq('user_id', user.id);
+    }
+
+    final emailSekarang = (user.email ?? '').trim();
+    await _client.auth.updateUser(
+      UserAttributes(
+        email: emailBersih != emailSekarang ? emailBersih : null,
+        data: {
+          ...?user.userMetadata,
+          'nama': namaBersih,
+          'no_hp': noHpBersih,
+        },
+      ),
+    );
+
+    final updated = await getCurrentProfile();
+    if (updated == null) {
+      throw Exception('Profil gagal dimuat setelah diperbarui.');
+    }
+    return updated;
+  }
+
+  Future<String> uploadProfilePhoto({
+    required List<int> bytes,
+    required String extension,
+    required String contentType,
+  }) async {
+    final user = currentUser;
+    if (user == null) {
+      throw Exception('Pengguna belum login.');
+    }
+
+    final ext = extension.toLowerCase().replaceAll('.', '');
+    final amanExt = {'jpg', 'jpeg', 'png', 'webp'}.contains(ext) ? ext : 'jpg';
+    final path = '${user.id}/avatar.$amanExt';
+
+    await _client.storage.from('profile-photos').uploadBinary(
+      path,
+      bytes,
+      fileOptions: FileOptions(
+        upsert: true,
+        contentType: contentType,
+        cacheControl: '3600',
+      ),
+    );
+
+    final publicUrl =
+        _client.storage.from('profile-photos').getPublicUrl(path);
+    final avatarUrl =
+        '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
+
+    await _client
+        .from('profiles')
+        .update({'avatar_url': avatarUrl})
+        .eq('id', user.id);
+
+    await _client.auth.updateUser(
+      UserAttributes(
+        data: {
+          ...?user.userMetadata,
+          'avatar_url': avatarUrl,
+        },
+      ),
+    );
+
+    return avatarUrl;
   }
 
   /// Membuat data domain `lansia` untuk akun ber-role lansia jika belum ada.
