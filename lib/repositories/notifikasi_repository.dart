@@ -32,4 +32,10 @@ class NotifikasiRepository {
         .eq('lansia_id', lansiaId)
         .eq('dibaca', false);
   }
+
+
+  Future<void> hapusNotifikasi(String id) async {
+    if (id.isEmpty) return;
+    await _client.from('notifikasi').delete().eq('id', id);
+  }
 }
