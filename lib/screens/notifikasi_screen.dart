@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../core/theme/app_theme.dart';
 import '../models/notifikasi_model.dart';
+import '../providers/device_provider.dart';
 import '../repositories/notifikasi_repository.dart';
 
 class NotifikasiScreen extends StatefulWidget {
@@ -44,6 +46,52 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Gagal memperbarui notifikasi.')),
+      );
+    }
+  }
+
+
+  Future<void> _hapusNotifikasi(NotifikasiModel item) async {
+    final konfirmasi = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hapus Notifikasi?'),
+        content: Text(
+          'Notifikasi "${item.judul}" akan dihapus secara permanen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (konfirmasi != true) return;
+
+    try {
+      await _repo.hapusNotifikasi(item.id);
+      if (!mounted) return;
+
+      setState(_muatUlang);
+      await context
+          .read<DeviceProvider>()
+          .refreshUnreadNotifications(notify: true);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notifikasi berhasil dihapus.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal menghapus notifikasi.')),
       );
     }
   }
@@ -192,7 +240,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
             child: ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final item = items[index];
                 final warna = _warnaUntuk(item.jenis);
@@ -254,6 +302,39 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                                           shape: BoxShape.circle,
                                         ),
                                       ),
+                                    const SizedBox(width: 4),
+                                    PopupMenuButton<String>(
+                                      tooltip: 'Opsi notifikasi',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 150,
+                                      ),
+                                      icon: const Icon(
+                                        Icons.more_vert,
+                                        size: 20,
+                                        color: AppColors.muted,
+                                      ),
+                                      onSelected: (value) {
+                                        if (value == 'hapus') {
+                                          _hapusNotifikasi(item);
+                                        }
+                                      },
+                                      itemBuilder: (context) => const [
+                                        PopupMenuItem<String>(
+                                          value: 'hapus',
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.delete_outline,
+                                                color: AppColors.error,
+                                              ),
+                                              SizedBox(width: 10),
+                                              Text('Hapus'),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ],
                                 ),
                                 if (item.pesan.isNotEmpty) ...[
