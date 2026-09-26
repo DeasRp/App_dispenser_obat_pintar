@@ -6,6 +6,27 @@ insert into storage.buckets (id, name, public)
 values ('profile-photos', 'profile-photos', true)
 on conflict (id) do update set public = excluded.public;
 
+-- Pastikan pengguna dapat memperbarui baris profil miliknya sendiri.
+alter table public.profiles enable row level security;
+
+drop policy if exists "profiles_update_own_obatku" on public.profiles;
+create policy "profiles_update_own_obatku"
+on public.profiles
+for update
+to authenticated
+using (id = auth.uid())
+with check (id = auth.uid());
+
+drop policy if exists "profile_photos_select_own" on storage.objects;
+create policy "profile_photos_select_own"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'profile-photos'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
 drop policy if exists "profile_photos_insert_own" on storage.objects;
 create policy "profile_photos_insert_own"
 on storage.objects
