@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../core/services/auth_service.dart';
@@ -20,6 +21,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _repo = LansiaRepository();
   final _keluargaRepo = KeluargaRepository();
+  final _imagePicker = ImagePicker();
   final _noHpKeluargaController = TextEditingController();
   final _noHpLansiaController = TextEditingController();
 
@@ -29,6 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isManagingRelation = false;
+  bool _isUploadingPhoto = false;
   String? _errorMessage;
   Future<LansiaTerhubungModel?>? _relationFuture;
 
@@ -66,6 +69,185 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _muatData();
     if (mounted && context.read<DeviceProvider>().isKeluarga) {
       _refreshRelation();
+    }
+  }
+
+
+  Future<void> _showEditProfile(DeviceProvider deviceProvider) async {
+    final profile = deviceProvider.profile;
+    final namaController = TextEditingController(text: profile?.nama ?? '');
+    final emailController = TextEditingController(
+      text: AuthService().currentUser?.email ?? '',
+    );
+    final noHpController = TextEditingController(text: profile?.noHp ?? '');
+    var saving = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: AppColors.canvas,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          Future<void> simpan() async {
+            if (saving) return;
+            setSheetState(() => saving = true);
+            final emailSebelum = AuthService().currentUser?.email ?? '';
+
+            try {
+              await AuthService().updateProfile(
+                nama: namaController.text,
+                email: emailController.text,
+                noHp: noHpController.text,
+              );
+              await deviceProvider.refreshProfile();
+
+              if (!sheetContext.mounted) return;
+              Navigator.pop(sheetContext);
+
+              final emailBerubah =
+                  emailController.text.trim() != emailSebelum.trim();
+              _showMessage(
+                emailBerubah
+                    ? 'Profil berhasil diperbarui. Periksa email untuk konfirmasi alamat baru jika diminta.'
+                    : 'Informasi profil berhasil diperbarui.',
+              );
+            } catch (e) {
+              if (mounted) {
+                _showMessage('Gagal memperbarui profil: $e');
+              }
+            } finally {
+              if (sheetContext.mounted) {
+                setSheetState(() => saving = false);
+              }
+            }
+          }
+
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              4,
+              20,
+              MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sheetHeader(
+                    icon: Icons.manage_accounts_outlined,
+                    title: 'Edit Informasi Profil',
+                    subtitle: 'Perbarui nama, email, dan nomor HP akun.',
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: namaController,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Nama',
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: noHpController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Nomor HP',
+                      prefixIcon: Icon(Icons.phone_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Perubahan email dapat memerlukan konfirmasi melalui alamat email baru.',
+                    style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 11,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: saving ? null : simpan,
+                      icon: saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.save_outlined),
+                      label: const Text('Simpan Profil'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    namaController.dispose();
+    emailController.dispose();
+    noHpController.dispose();
+  }
+
+  Future<void> _pilihFotoProfil(DeviceProvider deviceProvider) async {
+    if (_isUploadingPhoto) return;
+
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 82,
+        maxWidth: 1200,
+      );
+      if (picked == null) return;
+
+      setState(() => _isUploadingPhoto = true);
+
+      final bytes = await picked.readAsBytes();
+      final extension = picked.name.contains('.')
+          ? picked.name.split('.').last.toLowerCase()
+          : 'jpg';
+      final contentType = picked.mimeType ??
+          (extension == 'png'
+              ? 'image/png'
+              : extension == 'webp'
+                  ? 'image/webp'
+                  : 'image/jpeg');
+
+      await AuthService().uploadProfilePhoto(
+        bytes: bytes,
+        extension: extension,
+        contentType: contentType,
+      );
+      await deviceProvider.refreshProfile();
+
+      if (mounted) {
+        _showMessage('Foto profil berhasil diperbarui.');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showMessage('Gagal memperbarui foto profil: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingPhoto = false);
     }
   }
 
@@ -594,25 +776,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Row(
             children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.40),
-                    width: 2,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  initial,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                  ),
+              GestureDetector(
+                onTap: _isUploadingPhoto
+                    ? null
+                    : () => _pilihFotoProfil(deviceProvider),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.40),
+                          width: 2,
+                        ),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      alignment: Alignment.center,
+                      child: _isUploadingPhoto
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                color: Colors.white,
+                              ),
+                            )
+                          : (profile?.avatarUrl ?? '').isNotEmpty
+                              ? Image.network(
+                                  profile!.avatarUrl!,
+                                  width: 72,
+                                  height: 72,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Center(
+                                    child: Text(
+                                      initial,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 30,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Text(
+                                  initial,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                    ),
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.primary,
+                            width: 2,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt_outlined,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 16),
@@ -862,8 +1102,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: Icons.account_circle_outlined,
                   iconColor: const Color(0xFF6C63FF),
                   title: 'Informasi Profil',
-                  subtitle: 'Nama, email, dan peran akun ditampilkan di bagian atas.',
-                  onTap: null,
+                  subtitle: 'Edit nama, email, nomor HP, dan foto profil.',
+                  onTap: () => _showEditProfile(deviceProvider),
                 ),
                 _divider(),
                 _menuTile(
