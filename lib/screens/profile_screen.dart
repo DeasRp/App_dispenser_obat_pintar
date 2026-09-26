@@ -203,9 +203,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
 
-    namaController.dispose();
-    emailController.dispose();
-    noHpController.dispose();
   }
 
   Future<void> _pilihFotoProfil(DeviceProvider deviceProvider) async {
