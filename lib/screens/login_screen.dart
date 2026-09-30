@@ -35,9 +35,13 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
     } on AuthException catch (e) {
-      setState(() => _errorMessage = _pesanErrorRamah(e.message));
+      if (mounted) {
+        setState(() => _errorMessage = _pesanErrorRamah(e.message));
+      }
     } catch (e) {
-      setState(() => _errorMessage = 'Terjadi kesalahan, silakan coba lagi.');
+      if (mounted) {
+        setState(() => _errorMessage = _pesanKoneksiRamah(e));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -53,6 +57,19 @@ class _LoginScreenState extends State<LoginScreen> {
     return pesanAsli;
   }
 
+  String _pesanKoneksiRamah(Object error) {
+    final pesan = error.toString().toLowerCase();
+
+    if (pesan.contains('failed host lookup') ||
+        pesan.contains('socketexception') ||
+        pesan.contains('network') ||
+        pesan.contains('connection')) {
+      return 'Tidak dapat terhubung ke server. Periksa koneksi internet, lalu coba lagi.';
+    }
+
+    return 'Terjadi kesalahan, silakan coba lagi.';
+  }
+
   Future<void> _lupaPassword() async {
     if (_emailController.text.trim().isEmpty) {
       setState(() => _errorMessage = 'Isi email terlebih dahulu untuk reset password.');
@@ -66,7 +83,9 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
-      setState(() => _errorMessage = 'Gagal mengirim email reset password.');
+      if (mounted) {
+        setState(() => _errorMessage = _pesanKoneksiRamah(e));
+      }
     }
   }
 
