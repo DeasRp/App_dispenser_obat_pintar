@@ -88,9 +88,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildHero(DeviceProvider provider) {
-    final nama = provider.status.namaLansia.trim().isEmpty
-        ? 'Pengguna'
-        : provider.status.namaLansia.trim();
+    final namaAkun = provider.profile?.nama.trim() ?? '';
+    final namaLansia = provider.status.namaLansia.trim();
+
+    final nama = namaAkun.isNotEmpty
+        ? namaAkun
+        : (namaLansia.isNotEmpty ? namaLansia : 'Pengguna');
+    final roleLabel = provider.isKeluarga ? 'Keluarga' : 'Lansia';
     final online = provider.status.isDeviceOnline;
 
     return Container(
@@ -135,16 +139,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  nama,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        nama,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.28),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            provider.isKeluarga
+                                ? Icons.family_restroom_outlined
+                                : Icons.elderly_outlined,
+                            size: 13,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            roleLabel,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+                if (provider.isKeluarga) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    provider.sudahTerhubungDenganLansia &&
+                            namaLansia.isNotEmpty
+                        ? 'Memantau: $namaLansia'
+                        : 'Belum terhubung dengan lansia',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFFFFEEF1),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 7),
                 Row(
                   children: [
